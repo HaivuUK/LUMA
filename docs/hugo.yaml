@@ -164,5 +164,9 @@ params:
       # lang: en
       # theme: noborder_dark
 
+caches:
+  images:
+    dir: :cacheDir/images
+
 ignoreLogs:
   - "warning-rendershortcodes-in-html"
