@@ -1,5 +1,5 @@
 # Configuration
-baseURL: https://example.org/
+baseURL: https://luma.haivu.org/
 locale: en-GB
 title: LUMA Documentation
 
@@ -28,21 +28,6 @@ languages:
     weight: 1
     title: LUMA
     contentDir: "content/en"
-  sv:
-    label: Svenska
-    weight: 2
-    title: LUMA
-    contentDir: "content/sv"
-  cn:
-    label: 中文
-    weight: 3
-    title: LUMA
-    contentDir: "content/cn"
-  it:
-    label: Italiano
-    weight: 4
-    title: LUMA
-    contentDir: "content/it"
 
 module:
   imports:
