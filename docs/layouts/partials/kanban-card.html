@@ -1,0 +1,27 @@
+<a href="{{ .RelPermalink }}" class="not-prose hx-group hx-block hx-p-4 hx-bg-white dark:hx-bg-neutral-800 hx-rounded-lg hx-border hx-border-gray-200 dark:hx-border-neutral-700/60 hover:hx-border-primary-500 dark:hover:hx-border-primary-500 hx-shadow-sm hover:hx-shadow-md hx-transition-all hx-duration-200">
+  <div class="hx-flex hx-justify-between hx-items-start hx-gap-2">
+    <h4 class="hx-font-semibold hx-text-base hx-text-gray-900 dark:hx-text-gray-100 group-hover:hx-text-primary-600 dark:group-hover:hx-text-primary-400 hx-transition-colors">
+      {{ .Title }}
+    </h4>
+  </div>
+  
+  {{ if .Description }}
+    <p class="hx-mt-1.5 hx-text-xs hx-text-gray-500 dark:hx-text-gray-400 hx-line-clamp-2">
+      {{ .Description }}
+    </p>
+  {{ end }}
+
+  <div class="hx-mt-3 hx-flex hx-flex-wrap hx-items-center hx-gap-2 hx-text-[10px] hx-font-medium">
+    {{ if .Params.version }}
+      <span class="hx-text-gray-700 dark:hx-text-gray-300 hx-px-2 hx-py-0.5 hx-rounded" style="background: rgba(156, 163, 175, 0.15); border: 1px solid rgba(156, 163, 175, 0.2);">
+        v{{ .Params.version }}
+      </span>
+    {{ end }}
+    {{ if .Params.time }}
+      <span class="hx-text-gray-400 dark:hx-text-gray-500 hx-flex hx-items-center hx-gap-1">
+        {{ partial "utils/icon.html" (dict "name" "clock" "attributes" "width=12 height=12") }}
+        {{ .Params.time }}
+      </span>
+    {{ end }}
+  </div>
+</a>

@@ -1,0 +1,34 @@
+
+backToTop: "Scroll to top"
+changeLanguage: "Change language"
+changeTheme: "Change theme"
+copyCode: "Copy code"
+dark: "Dark"
+editThisPage: "Edit this page on GitHub →"
+lastUpdated: "Last updated on"
+light: "Light"
+noResultsFound: "No results found."
+onThisPage: "On this page"
+readMore: "Read more →"
+404Message: "Hold on, you seem to have taken a wrong turn. The page you are looking for does not exist."
+homepageTagline: "Local Unit Modulus Assignment Documentation"
+
+# Navbar
+docs: "Documentation"
+about: "About"
+roadmap: "Roadmap"
+searchPlaceholder: "Search..."
+
+# Language Dropdown
+languageOther: "Other"
+languageOtherLink: "/about#languages"
+
+# Footer
+home: "Home"
+contact: "Contact"
+disclaimer: "Disclaimer"
+copyright: "© 2025 George Allison."
+privacyNotice: "Privacy Policy"
+
+## Roadmap
+backToRoadmap: "Back to Roadmap"

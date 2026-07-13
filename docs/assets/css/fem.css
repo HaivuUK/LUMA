@@ -1,0 +1,80 @@
+/* Ensure the parent hero context is positioned correctly */
+.hero {
+  position: relative;
+  width: 100%;
+  margin-bottom: 10rem;
+  overflow: hidden; /* Keeps the full-width breakout from creating horizontal scrollbars */
+}
+
+/* Updated grid container: full screen breakout + calming fade effects */
+.hero-fem {
+  position: absolute;
+  bottom: 0;
+  
+  /* Foolproof breakout: forces full viewport width even inside constrained containers */
+  width: 100vw;
+  left: 50%;
+  transform: translateX(-50%);
+  
+  height: 225px; /* Matches your original desktop wave height */
+  pointer-events: none;
+  z-index: 1;
+
+  /* Lowers visual intensity to keep it safely in the background */
+  opacity: 0.55; 
+
+  /* Modern 2D mask: smoothly dissolves the grid towards the left, right, top, and bottom edges */
+  -webkit-mask-image: radial-gradient(ellipse at bottom, rgba(0,0,0,1) 30%, rgba(0,0,0,0.5) 60%, rgba(0,0,0,0) 100%);
+  mask-image: radial-gradient(ellipse at bottom, rgba(0,0,0,1) 30%, rgba(0,0,0,0.5) 60%, rgba(0,0,0,0) 100%);
+}
+
+.hero-fem svg.fem {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+/* Ensure foreground elements stay perfectly readable on top */
+.hero h1,
+.hero * {
+  position: relative;
+  z-index: 2;
+}
+
+/* --- Porting your exact responsive overrides from your wave CSS --- */
+@media (max-width: 260px) {
+  .hero-fem { display: none; }
+}
+
+@media (max-width: 520px) {
+  .hero-fem { height: 100px !important; }
+}
+
+@media (max-height: 580px) {
+  .hero-fem { display: none; }
+}
+
+@media (max-height: 640px) {
+  .hero { padding-top: 0rem !important; }
+}
+
+@media (max-height: 750px) {
+  .hero-fem { height: 150px; }
+}
+
+@media (max-height: 800px) and (max-width: 900px) {
+  .hero { padding-top: 0rem !important; }
+  .hero-fem { height: 150px; }
+}
+
+@media (max-height: 850px) {
+  .hero { padding-top: 5rem; }
+}
+
+@media (min-height: 1200px) {
+  .hero-fem {
+    display: block;
+    bottom: inherit;
+    margin-top: 10rem;
+  }
+}

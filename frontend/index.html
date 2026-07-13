@@ -1,0 +1,3889 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LUMA - 3D Mesh Visualisation</title>
+    <script type="importmap">
+        {
+          "imports": {
+            "three": "https://unpkg.com/three@0.185.0/build/three.module.js",
+            "three/webgpu": "https://unpkg.com/three@0.185.0/build/three.webgpu.js",
+            "three/addons/": "https://unpkg.com/three@0.185.0/examples/jsm/"
+          }
+        }
+    </script>
+
+    <style>
+        @import url('styling/styles.css');
+        @import url('styling/burger.css');
+        @import url('styling/menucard.css');        
+        @import url('styling/panelling.css');
+        @import url('styling/reset-button.css');
+        @import url('styling/colourbar.css');
+        @import url('styling/quadrant.css');
+        @import url('styling/histogram.css');
+        @import url('styling/transformers.css');
+        @import url('styling/calibrators.css');
+
+        body[data-view-mode="mesh"] [data-view-mode="mesh_ct"] {
+            display: none !important;
+        }
+        body[data-view-mode="mesh_ct"] [data-view-mode="mesh"] {
+            display: none !important;
+        }
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f0f0f0;
+            overflow: hidden;
+        }
+        .header {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            z-index: 1000;
+            background: var(--wrapper-background);
+            padding: 10px;
+            border-radius: 5px;
+            font-size: 14px;
+            color: var(--wrapper-text-colour);
+        }
+        .solo-button {
+            position: absolute;
+            bottom: 10px;
+            right: 10px;
+            background: var(--wrapper-background);
+            padding: 8px;
+            border-radius: 4px;
+            color: var(--slider-colour);
+            font-size: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            z-index: 100;
+        }
+        .slice-controls {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            right: 10px;
+            background: var(--wrapper-background);
+            padding: 8px;
+            border-radius: 4px;
+            color: var(--slider-colour);
+            font-size: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            z-index: 100;
+        }
+        .slice-controls input[type="range"] {
+            flex: 1;
+            margin: 0 8px;
+        }
+        .slice-controls label {
+            white-space: nowrap;
+        }
+        .slice-controls span {
+            min-width: 50px;
+            text-align: right;
+        }
+        .plane-label-layer {
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+            z-index: 20;
+        }
+        .plane-label {
+            position: absolute;
+            transform: translate(-100%, -100%);
+            padding: 4px 8px;
+            border-radius: 999px;
+            background: rgba(0, 0, 0, 0.45);
+            color: #fff;
+            font: 700 12px/1.1 Arial, sans-serif;
+            letter-spacing: 0.04em;
+            white-space: nowrap;
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.9);
+            border: 1px solid rgba(255, 255, 255, 0.18);
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.25);
+        }
+        #stats {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            color: white;
+            font-size: 12px;
+            background: var(--wrapper-background);
+            padding: 5px;
+            border-radius: 3px;
+            z-index: 100;
+        }
+    </style>
+</head>
+<body>
+    <div class="header hidden-panel" id="header-panel">
+        <h3>LUMA - Material Distribution Visualisation
+        <button class="panel-toggle" data-toggle="header-panel">&times;</button></h3>
+        <div>Vertices: <span id='vcount'></span> | Faces: <span id='fcount'></span></div>
+        <div data-view-mode="mesh">Material Range: <span id='matmin'></span> - <span id='matmax'></span></div>
+        <div data-view-mode="mesh_ct">CT Slices: A=<span id='slice-a'></span>, S=<span id='slice-s'></span>, C=<span id='slice-c'></span></div>
+    </div>
+
+    <div class="panel-controls-wrapper" id="panel-controls-wrapper" title="Drag to reposition">
+        <label class="burger" title="Toggle controls"  aria-label="Toggle controls" aria-expanded="true">
+            <input type="checkbox" id="panel-controls-toggle">
+            <span></span>
+            <span></span>
+            <span></span>
+        </label>
+        <div class="panel-controls-menu" id="panel-controls-menu">
+            <button onclick="togglePanel('header-panel')">Info</button>
+            <button onclick="togglePanel('colorbar-wrapper')" data-view-mode="mesh">Colorbar</button>
+            <button onclick="togglePanel('histogram-panel')" data-view-mode="mesh">Histogram</button>
+            <button onclick="togglePanel('transform-panel')" data-view-mode="mesh_ct">Transform</button>
+            <button onclick="togglePanel('calibration-panel')" data-view-mode="mesh_ct">Calibration</button>
+        </div>
+    </div>
+        
+    <div class="quadrant-container">
+        <div class="quadrant" id="quadrant-3d">
+            <div class="quadrant-label">3D View</div>
+            <div class="solo-button">
+                <button class="reset-button" id="3d-reset" onclick="resetView('3d')">Reset View</button>
+            </div>
+        </div>
+        <div class="quadrant" id="quadrant-z">
+            <div class="quadrant-label" data-view-mode="mesh_ct">Axial (XY)</div>
+            <div class="quadrant-label" data-view-mode="mesh">Z Plane (XY)</div>
+            <canvas class="ct-canvas" id="axial-canvas" data-view-mode="mesh_ct"></canvas>
+            <div class="loading-indicator" id="axial-loading" data-view-mode="mesh_ct">Loading...</div>
+            <div class="slice-controls">
+                <label for="z-slider">Z Slice:</label>
+                <input type="range" id="z-slider" min="0" max="100" value="50" onchange="updateSlice('z')">
+                <span id="z-value">0.0</span>
+                <button class="reset-button" id="z-reset" onclick="resetView('z')">Reset View</button>
+            </div>
+        </div>
+        <div class="quadrant" id="quadrant-y">
+            <div class="quadrant-label" data-view-mode="mesh_ct">Sagittal (YZ)</div>
+            <div class="quadrant-label" data-view-mode="mesh">Y Plane (XZ)</div>
+            <canvas class="ct-canvas" id="sagittal-canvas" data-view-mode="mesh_ct"></canvas>
+            <div class="loading-indicator" id="sagittal-loading" data-view-mode="mesh_ct">Loading...</div>
+            <div class="slice-controls">
+                <label for="y-slider">Y Slice:</label>
+                <input type="range" id="y-slider" min="0" max="100" value="50" onchange="updateSlice('y')">
+                <span id="y-value">0.0</span>
+                <button class="reset-button" id="y-reset" onclick="resetView('y')">Reset View</button>
+            </div>
+        </div>
+        <div class="quadrant" id="quadrant-x">
+            <div class="quadrant-label" data-view-mode="mesh_ct">Coronal (XZ)</div>
+            <div class="quadrant-label" data-view-mode="mesh">X Plane (YZ)</div>
+            <canvas class="ct-canvas" id="coronal-canvas" data-view-mode="mesh_ct"></canvas>
+            <div class="loading-indicator" id="coronal-loading" data-view-mode="mesh_ct">Loading...</div>
+            <div class="slice-controls">
+                <label for="x-slider">X Slice:</label>
+                <input type="range" id="x-slider" min="0" max="100" value="50" onchange="updateSlice('x')">
+                <span id="x-value">0.0</span>
+                <button class="reset-button" id="x-reset" onclick="resetView('x')">Reset View</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="transform-controls" id="transform-panel" data-view-mode="mesh_ct">
+        <div class="transform-header">
+            <span>Mesh transform</span>
+            <button id="mesh-transform-reset" type="button" class="reset-button">Reset</button>
+            <button class="panel-toggle" data-toggle="transform-panel">&times;</button>
+        </div>
+        <div class="transform-subheading">Translate (mm)</div>
+        <div class="transform-row">
+            <label for="mesh-translate-x">X</label>
+            <input type="range" id="mesh-translate-x" min="-50" max="50" step="1" value="0">
+            <span class="value" id="mesh-translate-x-value">0.00&nbsp;mm</span>
+        </div>
+        <div class="transform-row">
+            <label for="mesh-translate-y">Y</label>
+            <input type="range" id="mesh-translate-y" min="-50" max="50" step="1" value="0">
+            <span class="value" id="mesh-translate-y-value">0.00&nbsp;mm</span>
+        </div>
+        <div class="transform-row">
+            <label for="mesh-translate-z">Z</label>
+            <input type="range" id="mesh-translate-z" min="-50" max="50" step="1" value="0">
+            <span class="value" id="mesh-translate-z-value">0.00&nbsp;mm</span>
+        </div>
+        <div class="transform-divider"></div>
+        <div class="transform-subheading">Rotate (°)</div>
+        <div class="transform-row">
+            <label for="mesh-rotate-x">X</label>
+            <input type="range" id="mesh-rotate-x" min="-180" max="180" step="1" value="0">
+            <span class="value" id="mesh-rotate-x-value">0°</span>
+        </div>
+        <div class="transform-row">
+            <label for="mesh-rotate-y">Y</label>
+            <input type="range" id="mesh-rotate-y" min="-180" max="180" step="1" value="0">
+            <span class="value" id="mesh-rotate-y-value">0°</span>
+        </div>
+        <div class="transform-row">
+            <label for="mesh-rotate-z">Z</label>
+            <input type="range" id="mesh-rotate-z" min="-180" max="180" step="1" value="0">
+            <span class="value" id="mesh-rotate-z-value">0°</span>
+        </div>
+    </div>
+
+    <div class="calibration-controls hidden-panel" id="calibration-panel" data-view-mode="mesh_ct">
+        <div class="calibration-header">
+            <span>Calibration</span>
+            <button id="btn-add-roi" type="button" class="reset-button">Add ROI</button>
+            <button class="panel-toggle" data-toggle="calibration-panel">&times;</button>
+        </div>
+        <div class="roi-list-container" id="roi-list-container">
+            <!-- dynamic rows inserted here -->
+        </div>
+        <div class="calibration-result">
+            <label for="roi-slope">ROI Slope</label>
+            <span class="value" id="roi-slope-value">0.0</span>
+        </div>
+        <div class="calibration-result">
+            <label for="roi-intercept">ROI Intercept</label>
+            <span class="value" id="roi-intercept-value">0.0</span>
+        </div>
+        <div class="calibration-footer">
+            <button id="btn-calibration-calculate" class="reset-button">Calculate</button>
+            <button id="btn-save-calibration" class="reset-button">Save to TOML</button>
+        </div>
+    </div>
+
+    <template id="roi-row-template">
+        <div class="roi-row" data-id="">
+            <div class="roi-row-top">
+                <button type="button" class="roi-toggle" title="Toggle ROI details" aria-label="Toggle ROI details">
+                    <span></span>
+                </button>
+                <input type="text" class="roi-name" placeholder="Insert ROI name">
+                <button type="button" class="btn-delete-roi" title="Delete ROI">&times;</button>
+                <div class="input-inline">
+                    <label>Target BMD:</label>
+                    <input type="number" class="roi-bmd" step="0.1" placeholder="mg/cm3">
+                </div>
+            </div>
+            <div class="roi-row-bottom">
+                <div class="range-group">
+                    <label>X:</label>
+                    <input type="number" class="slice-start-x" title="Start X">
+                    <label>to</label>
+                    <input type="number" class="slice-end-x" title="End X">
+                </div>
+                <div class="range-group">
+                    <label>Y:</label>
+                    <input type="number" class="slice-start-y" title="Start Y">
+                    <label>to</label>
+                    <input type="number" class="slice-end-y" title="End Y">
+                </div>
+                <div class="range-group">
+                    <label>Z:</label>
+                    <input type="number" class="slice-start-z" title="Start Z">
+                    <label>to</label>
+                    <input type="number" class="slice-end-z" title="End Z">
+                </div>
+                <div class="mean-hu-display">
+                    <label>Mean HU:</label>
+                    <span class="roi-mean-hu">--</span>
+                </div>
+            </div>
+        </div>
+    </template>
+    
+    <div class="colorbar-wrapper" data-view-mode="mesh" id="colorbar-wrapper" title="Drag to reposition. Double-click to reset.">
+        <button class="panel-toggle" style="position: absolute; top: 10px; right: 10px;" data-toggle="colorbar-wrapper">&times;</button>
+        <div class="colorbar-row">
+            <div class="colorbar" id="colorbar"></div>
+            <div class="colorbar-labels">
+                <span id="colorbar-label-max"><span id='cb-max'></span></span>
+                <span id="colorbar-label-mid">{mid_material:.3}</span>
+                <span id="colorbar-label-min"><span id='cb-min'></span></span>
+            </div>
+        </div>
+        <div class="color-controls" id="color-controls">
+            <label for="color-map-select">Palette</label>
+            <select id="color-map-select"></select>
+            <label for="color-min-input">Min</label>
+            <input type="number" id="color-min-input" step="0.001" inputmode="decimal">
+            <label for="color-max-input">Max</label>
+            <input type="number" id="color-max-input" step="0.001" inputmode="decimal">
+            <button id="color-reset" type="button" class="reset-button">Reset Range</button>
+        </div>
+    </div>
+    
+    <div id="stats"></div>
+    <div class="histogram-panel hidden-panel" id="histogram-panel" data-view-mode="mesh"> <!-- hidden was here-->
+        <div class="histogram-header">
+            <span>Histogram</span>
+            <span id="histogram-summary"></span>
+            <button type="button" onclick="resetHistogramControls()" class="reset-button">Reset</button>
+            <button class="panel-toggle" data-toggle="histogram-panel">&times;</button>
+        </div>
+        <canvas id="histogram-canvas" width="340" height="200"></canvas>
+        <div class="histogram-legend" id="histogram-legend"></div>
+        <div class="histogram-axis-controls">
+            <label for="hist-bins">Bins:</label>
+            <input type="number" id="hist-bins" value="60" min="5" max="1000">
+
+            <label for="hist-x-min">X Min:</label>
+            <input type="number" id="hist-x-min" step="10">
+            <label for="hist-x-max">X Max:</label>
+            <input type="number" id="hist-x-max" step="10">
+
+            <label for="hist-y-min">Y Min:</label>
+            <input type="number" id="hist-y-min" step="10" value="0">
+            <label for="hist-y-max">Y Max:</label>
+            <input type="number" id="hist-y-max" step="10" placeholder="Auto">
+
+            <label for="hist-y-scale">Y Scale:</label>
+            <select id="hist-y-scale">
+                <option value="linear">Linear</option>
+                <option value="log">Logarithmic</option>
+            </select>
+        </div>
+    </div>
+
+    <div id="custom-context-menu" class="card" style="display: none; position: absolute; z-index: 9999;">
+        <ul class="list">
+            <li class="element" id="menu-export-svg" >
+                <span class="label">Export SVG</span>
+            </li>
+            <li class="element" id="menu-export-png">
+                <span class="label">Export PNG</span>
+            </li>
+        </ul>
+        <div class="separator"></div>
+        <ul class="list">
+            <li class="element" id="menu-export-clr-bar-svg">
+                <span class="label">Export colorbar SVG</span>
+            </li>
+            <li class="element" id="menu-export-clr-bar-png">
+                <span class="label">Export colorbar PNG</span>
+            </li>
+        </ul>
+    </div>
+
+    <div id="custom-histo-context-menu" class="card" style="display: none; position: absolute; z-index: 9999;">
+        <ul class="list">
+            <li class="element" id="histo-export-png">
+                <span class="label">Export PNG</span>
+            </li>
+        </ul>
+    </div>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { WebGPURenderer } from 'three/webgpu';
+        import { ArcballControls } from 'three/addons/controls/ArcballControls.js';
+        import { ViewHelper } from 'three/addons/helpers/ViewHelper.js';
+        import { SVGRenderer } from 'three/addons/renderers/SVGRenderer.js';
+        import * as BufferGeometryUtils from 'three/addons/utils/BufferGeometryUtils.js';
+
+        import {
+            getMeshMetadata,
+            getMeshVertices,
+            getMeshFaces,
+            getMeshColors,
+            getMeshVertexValues,
+            getMeshCtMetadata,
+            getMeshCtVertices,
+            getMeshCtFaces,
+            getMeshCtColors,
+            getMeshCtVertexValues,
+            getCtSlice
+        } from "./components/api.js";
+
+        import { CalibrationManager } from "./components/calibrator.js";
+
+        async function loadViewMode() {
+            return await window.__TAURI__.core.invoke('get_view_mode');
+        }
+
+        async function loadMesh() {
+        try {
+            meshData = await getMeshMetadata();
+
+            const [vertices, faces, colors, vertexValuesArray] = await Promise.all([
+            getMeshVertices(),
+            getMeshFaces(),
+            getMeshColors(),
+            getMeshVertexValues()
+            ]);
+
+            meshData.vertices = vertices;
+            meshData.faces = faces;
+            meshData.colors = colors;
+            meshData.vertex_values = vertexValuesArray;
+
+            initializeColorState();
+            await initializeVisualization();
+            setupHistogramListeners();
+        } catch (error) {
+            console.error("Failed to load mesh data:", error);
+        }
+        }
+
+        async function loadMeshCt() {
+        try {
+            const meshCt = await getMeshCtMetadata();
+
+            const [vertices, faces, colors, vertexValuesArray] = await Promise.all([
+                getMeshCtVertices(),
+                getMeshCtFaces(),
+                getMeshCtColors(),
+                getMeshCtVertexValues()
+            ]);
+
+            meshData = {
+                ...meshCt.mesh_metadata,
+                ct_bounds: meshCt.ct_bounds,
+                total_slices: meshCt.total_slices,
+                vertices,
+                faces,
+                colors,
+                vertex_values: vertexValuesArray
+            };
+
+            initializeColorState();
+            initCtViews();
+            if (meshData.position && typeof meshData.position.clone === 'function') {
+                meshBasePosition = meshData.position.clone();
+            } else if (meshData.bounds) {
+                meshBasePosition = new THREE.Vector3(
+                    (meshData.bounds.min_x + meshData.bounds.max_x) / 2,
+                    (meshData.bounds.min_y + meshData.bounds.max_y) / 2,
+                    (meshData.bounds.min_z + meshData.bounds.max_z) / 2
+                );
+            } else {
+                meshBasePosition = new THREE.Vector3(0, 0, 0);
+            }
+            if (meshData.ct_bounds) {
+                meshCtCenter = new THREE.Vector3(
+                    (meshData.ct_bounds.min_x + meshData.ct_bounds.max_x) / 2,
+                    (meshData.ct_bounds.min_y + meshData.ct_bounds.max_y) / 2,
+                    (meshData.ct_bounds.min_z + meshData.ct_bounds.max_z) / 2
+                );
+            }
+            // Keep visualiser translation state relative to CLI
+            meshTranslationState = { x: 0, y: 0, z: 0 };
+            await initializeVisualization();
+            meshRotationState = { x: 0, y: 0, z: 0 };
+            initialiseMeshTransformControls(meshData.bounds, meshData.ct_bounds);
+            
+            // Add CT slice planes to 3D view
+            addCtSlicePlanes();
+            } catch (error) {
+            console.error("Failed to load mesh data:", error);
+        }
+        }
+
+        // Load config from Tauri
+        async function loadConfig() {
+            try {
+                const config = await window.__TAURI__.core.invoke('get_template_params');
+
+                const setText = (id, value) => {
+                    const element = document.getElementById(id);
+                    if (element) {
+                        element.textContent = value;
+                    }
+                };
+
+                setText('vcount', config.vertex_count);
+                setText('fcount', config.face_count);
+                setText('matmin', config.min_material);
+                setText('matmax', config.max_material);
+                setText('cb-min', config.min_material);
+                setText('cb-max', config.max_material);
+                setText('colorbar-label-max', config.max_material);
+                setText('colorbar-label-min', config.min_material);
+                setText('slice-a', config.total_axial_slices);
+                setText('slice-s', config.total_sagittal_slices);
+                setText('slice-c', config.total_coronal_slices);
+            } catch (e) {
+                console.error("Failed to load config", e);
+            }
+        }
+        
+        async function bootstrap() {
+            const viewMode = await loadViewMode();
+
+            currentViewMode = viewMode;
+            document.body.dataset.viewMode = viewMode;
+
+            applyViewModeVisibility(viewMode);
+
+            if (viewMode === "mesh") {
+                await loadMesh();
+            } else if (viewMode === "mesh_ct") {
+                await loadMeshCt();
+            }
+
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', loadConfig, { once: true });
+            } else {
+                loadConfig();
+            }
+        }
+
+        function setupPanelControlsToggler() {
+            const wrapper = document.getElementById('panel-controls-wrapper');
+            const toggle = document.getElementById('panel-controls-toggle');
+
+            if (!wrapper || !toggle) {
+                return;
+            }
+
+            const syncState = () => {
+                const collapsed = wrapper.classList.contains('collapsed');
+                toggle.checked = !collapsed;
+                toggle.setAttribute('aria-expanded', String(!collapsed));
+            };
+
+            toggle.addEventListener('click', (event) => {
+                event.stopPropagation();
+                wrapper.classList.toggle('collapsed');
+                syncState();
+            });
+
+            wrapper.addEventListener('pointerdown', (event) => {
+                if (event.button !== 0 || event.target.closest('.burger') || event.target.closest('button')) {
+                    return;
+                }
+            });
+
+            syncState();
+        }
+
+        function setupPanelToggles() {
+            // Grab all buttons that have a data-toggle attribute
+            const toggleButtons = document.querySelectorAll('.panel-toggle[data-toggle]');
+
+            toggleButtons.forEach(button => {
+                button.addEventListener('click', (event) => {
+                    // Safely stop propagation without window.event
+                    event.stopPropagation();
+
+                    // Get the target panel ID from the clicked button data attribute
+                    const panelId = button.getAttribute('data-toggle');
+                    const panel = document.getElementById(panelId);
+
+                    if (panel) {
+                        panel.classList.toggle('hidden-panel');
+                    }
+                });
+            });
+        }
+
+        function togglePanel(panelId) {
+            const panel = document.getElementById(panelId);
+            if (panel) {
+                panel.classList.toggle('hidden-panel');
+            }
+        }
+
+        function applyViewModeVisibility(viewMode) {
+            document.querySelectorAll('[data-view-mode]').forEach(el => {
+                const value = (el.dataset.viewMode || '').trim();
+                if (!value || value === 'all') {
+                    el.hidden = false;
+                    return;
+                }
+
+                const modes = value.split(/[\s,]+/).filter(Boolean);
+                el.hidden = !modes.includes(viewMode);
+            });
+        }
+
+        // Big disgusting variable block
+        // Note: clean at some point
+        let meshData = null;
+        let currentViewMode = 'mesh';
+        const ctPlaneBindings = {
+            z: { plane: 'axial', canvasId: 'axial-canvas', sliderId: 'z-slider', valueId: 'z-value' },
+            y: { plane: 'sagittal', canvasId: 'sagittal-canvas', sliderId: 'y-slider', valueId: 'y-value' },
+            x: { plane: 'coronal', canvasId: 'coronal-canvas', sliderId: 'x-slider', valueId: 'x-value' }
+        };
+        let baseMeshVertices = null;
+        let transformedMeshVertices = null;
+
+        // CT canvases and contexts
+        let axialCanvas, sagittalCanvas, coronalCanvas;
+        let axialCtx, sagittalCtx, coronalCtx;
+
+        // CT slice cache and performance ops
+        let ctSliceCache = new Map(); // CT slice cache
+        let pendingRequests = new Map(); // track requests to prevent duplicates
+        let updateTimeouts = new Map(); // debounce timeout
+        let isPreloading = false; //prevent multiple simultaneous preloads
+        let enableCtPreloading = false;
+        const ctLatestRequestedIndex = new Map();
+        const ctLoadInFlight = new Map();
+
+        const currentSliceData = { axial: null, sagittal: null, coronal: null };
+        const renderedSliceCache = new Map();
+        let scenes = {};
+        let cameras = {};
+        let renderers = {};
+        let controls = {};
+        let slicePositions = { x: 0.5, y: 0.5, z: 0.5 };
+        const colorbarWrapper = document.getElementById('colorbar-wrapper');
+        const colorbarDragState = { active: false, pointerId: null, offsetX: 0, offsetY: 0 };
+        const colorbarElement = document.getElementById('colorbar');
+        const colorbarLabelMax = document.getElementById('colorbar-label-max');
+        const colorbarLabelMid = document.getElementById('colorbar-label-mid');
+        const colorbarLabelMin = document.getElementById('colorbar-label-min');
+        const colorMapSelect = document.getElementById('color-map-select');
+        const colorMinInput = document.getElementById('color-min-input');
+        const colorMaxInput = document.getElementById('color-max-input');
+        const colorResetButton = document.getElementById('color-reset');
+        const colorControls = document.getElementById('color-controls');
+        const histogramPanel = document.getElementById('histogram-panel');
+        const histogramDragState = { active: false, pointerId: null, offsetX: 0, offsetY: 0 };
+        const histogramCanvas = document.getElementById('histogram-canvas');
+        const histogramSummary = document.getElementById('histogram-summary');
+        const histogramLegend = document.getElementById('histogram-legend');
+        const panelControlsWrapper = document.getElementById('panel-controls-wrapper');
+        const panelControlsDragState = { active: false, pointerId: null, offsetX: 0, offsetY: 0 };
+        const transformPanel = document.getElementById('transform-panel');
+        const transformControlsWrapper = transformPanel;
+        const transformResetButton = document.getElementById('mesh-transform-reset');
+        const translationInputs = {
+            x: document.getElementById('mesh-translate-x'),
+            y: document.getElementById('mesh-translate-y'),
+            z: document.getElementById('mesh-translate-z')
+        };
+        const translationValueLabels = {
+            x: document.getElementById('mesh-translate-x-value'),
+            y: document.getElementById('mesh-translate-y-value'),
+            z: document.getElementById('mesh-translate-z-value')
+        };
+        const rotationInputs = {
+            x: document.getElementById('mesh-rotate-x'),
+            y: document.getElementById('mesh-rotate-y'),
+            z: document.getElementById('mesh-rotate-z')
+        };
+        const rotationValueLabels = {
+            x: document.getElementById('mesh-rotate-x-value'),
+            y: document.getElementById('mesh-rotate-y-value'),
+            z: document.getElementById('mesh-rotate-z-value')
+        };
+        let meshRotationLimits = { x: 180, y: 180, z: 180 };
+        let meshTranslationLimits = {
+            x: { min: -50, max: 50 },
+            y: { min: -50, max: 50 },
+            z: { min: -50, max: 50 }
+        };
+        let meshTranslationState = { x: 0, y: 0, z: 0 };
+        let meshRotationState = { x: 0, y: 0, z: 0 };
+        const tempVector = new THREE.Vector3();
+        const rotationEuler = new THREE.Euler();
+        const rotationMatrix = new THREE.Matrix4();
+        const translationVector = new THREE.Vector3();
+        let pendingSliceRedraw = null;
+        const transformPanelDragState = { active: false, pointerId: null, offsetX: 0, offsetY: 0 };
+        const calibrationPanel = document.getElementById('calibration-panel');
+        const calibrationPanelDragState = { active: false, pointerId: null, offsetX: 0, offsetY: 0 };
+        const calibrationManagers = {};
+        let calibrationManager = null;
+
+        import { COLOR_MAPS } from './components/colourmaps.js';
+        import { PLANE_COLOUR } from './components/planecolours.js';
+
+        const DEFAULT_COLORMAP_ID = 'rainbow';
+        let vertexValues = [];
+        let originalMaterialRange = { min: 0, max: 1 };
+        let currentColorRange = { min: 0, max: 1 };
+        let currentColormapId = DEFAULT_COLORMAP_ID;
+        let currentVertexColors = [];
+        let meshObjects = {};
+        let meshGroup = null;
+        let meshTransformPivot = null;
+        const ctSlicePlanes = { axial: null, sagittal: null, coronal: null };
+        const planeLabelMarkers = [];
+        let planeLabelLayer = null;
+        let activeQuadrantId = null;
+        let meshPivotCenter = null;
+        let meshBasePosition = null;
+        let meshCtCenter = null;
+        let faceBounds = null;
+        const viewHelpers = {};
+
+        // Shared geometry and clipping planes for performance
+        let sharedGeometry = null;
+        let fullMaterial = null;
+        let clipPlaneX = new THREE.Plane(new THREE.Vector3(-1, 0, 0), 0);
+        let clipPlaneY = new THREE.Plane(new THREE.Vector3(0, -1, 0), 0);
+        let clipPlaneZ = new THREE.Plane(new THREE.Vector3(0, 0, -1), 0);
+
+        // Slice geometry cache: key = "axis_tValue" (e.g., "x_0.5")
+        const sliceGeometryCache = new Map();
+        const SLICE_CACHE_TOLERANCE = 0.005; // Regenerate cache if t changes more than this
+
+        // Pre-allocate slice mesh objects to avoid recreation
+        let sliceMeshes = { x: null, y: null, z: null };
+
+        window.togglePanel = togglePanel;
+        window.renderHistogram = renderHistogram;
+        window.resetHistogramControls = resetHistogramControls;
+        window.addEventListener('resize', handleWindowResize);
+        window.addEventListener('calibration-roi-updated', () => {
+            if (typeof currentSliceData === 'undefined') {
+                if (currentSliceData.axial) drawSlice('axial', currentSliceData.axial, true);
+                if (currentSliceData.sagittal) drawSlice('sagittal', currentSliceData.sagittal, true);
+                if (currentSliceData.coronal) drawSlice('coronal', currentSliceData.coronal, true);
+            }
+        });
+
+        // Colourbar dragging
+
+        const colorbarApi = createDraggableApi(colorbarWrapper, {
+            dock: { right: '10px', bottom: '10px', top: 'auto' }
+        });
+
+        setupDraggablePanel({
+            element: colorbarWrapper,
+            dragState: colorbarDragState,
+            ignoreSelectors: ['.panel-toggle', '.color-controls', '.reset-button'],
+            onStart: (rect, event) => {
+                colorbarWrapper.style.right = 'auto';
+                colorbarWrapper.style.bottom = 'auto';
+                colorbarApi.position(rect.left, rect.top);
+            },
+            onMove: ({ newLeft, newTop }) => colorbarApi.position(newLeft, newTop),
+            onEnd: () => colorbarApi.enforceBounds(),
+            onDoubleClick: (event) => {
+                if (!event.target.closest('.color-controls')) colorbarApi.reset();
+            }
+        });
+
+        // Histogram panel dragging
+
+        const histogramApi = createDraggableApi( histogramPanel, {
+            dock: { right: '10px', top: '10px', bottom: 'auto' }
+        });
+
+        setupDraggablePanel({
+            element: histogramPanel,
+            dragState: histogramDragState,
+            ignoreSelectors: ['.panel-toggle', '.histogram-axis-controls', '.reset-button'],
+            onStart: (rect, event) => {
+                histogramPanel.style.right = 'auto';
+                histogramPanel.style.bottom = 'auto';
+                histogramApi.position(rect.left, rect.top);
+            },
+            onMove: ({ newLeft, newTop }) => histogramApi.position(newLeft, newTop),
+            onEnd: () => histogramApi.enforceBounds(),
+            onDoubleClick: (event) => {
+                if (!event.target.closest('.histogram-header')) histogramApi.reset();
+            }
+        });
+
+        // Control panel dragging
+
+        const panelControlsApi = createDraggableApi(panelControlsWrapper, {
+            dock: { left: 'auto', top: '10px', bottom: 'auto' }
+        });
+
+        setupDraggablePanel({
+            element: panelControlsWrapper,
+            dragState: panelControlsDragState,
+            ignoreSelectors: ['.panel-toggle', '.burger', '.panel-controls-wrapper button', '.reset-button'],
+            onStart: (rect, event) => {
+                panelControlsWrapper.style.right = 'auto';
+                panelControlsWrapper.style.bottom = 'auto';
+                panelControlsWrapper.style.transform = 'none';
+                panelControlsApi.position(rect.left, rect.top);
+            },
+            onMove: ({ newLeft, newTop }) => panelControlsApi.position(newLeft, newTop),
+            onEnd: () => panelControlsApi.enforceBounds()
+        });
+
+        setupPanelControlsToggler();
+        setupPanelToggles();
+
+        // Tranfrom panel dragging
+
+        const transformPanelApi = createDraggableApi(document.getElementById('transform-panel'), {
+            dock: { right: '10px', top: '10px', bottom: 'auto' }
+        });
+
+        setupDraggablePanel({
+            element: transformPanel,
+            dragState: transformPanelDragState,
+            ignoreSelectors: ['.panel-toggle', '.transform-controls button', '.transform-row input', '.reset-button'],
+            onStart: (rect, event) => {
+                transformPanel.style.left = 'auto';
+                transformPanel.style.bottom = 'auto';
+                transformPanelApi.position(rect.left, rect.top);
+            },
+            onMove: ({ newLeft, newTop }) => transformPanelApi.position(newLeft, newTop),
+            onEnd: () => transformPanelApi.enforceBounds(),
+            onDoubleClick: (event) => {
+                if (!event.target.closest('.transform-controls header')) transformPanelApi.reset();
+            }
+        })
+
+        // Calibration panel dragging
+
+        const calibrationPanelApi = createDraggableApi(document.getElementById('calibration-panel'), {
+            dock: { right: '10px', top: 'auto', bottom: '10px' }
+        })
+
+        setupDraggablePanel({
+            element: calibrationPanel,
+            dragState: calibrationPanelDragState,
+            ignoreSelectors: ['.panel-toggle', '.calibration-controls .roi-row', '.reset-button'],
+            onStart: (rect, event) => {
+                calibrationPanel.style.right = 'auto';
+                calibrationPanel.style.bottom = 'auto';
+                calibrationPanelApi.position(rect.left, rect.top);
+            },
+            onMove: ({ newLeft, newTop }) => calibrationPanelApi.position(newLeft, newTop),
+            onEnd: () => calibrationPanelApi.enforceBounds(),
+            onDoubleClick: (event) => {
+                if (!event.target.closest('.calibration-controls header')) calibrationPanelApi.reset();
+            }
+        })
+
+        await bootstrap();
+
+        function initializeColorState() {
+            if (!meshData) {
+                return;
+            }
+
+            originalMaterialRange = {
+                min: meshData.material_range[0],
+                max: meshData.material_range[1]
+            };
+            currentColorRange = { ...originalMaterialRange };
+
+            const numVertices = meshData.vertices.length / 3;
+
+            if (meshData.vertex_values && meshData.vertex_values.length === numVertices) {
+                vertexValues = Array.from(meshData.vertex_values);
+            } else if (meshData.colors && meshData.colors.length === meshData.vertices.length) {
+                vertexValues = [];
+                for (let i = 0; i < numVertices; i++) {
+                    vertexValues.push((meshData.colors[i*3] + meshData.colors[i*3+1] + meshData.colors[i*3+2]) / 3);
+                }
+            } else {
+                vertexValues = new Array(numVertices).fill(0);
+            }
+
+            currentColormapId = DEFAULT_COLORMAP_ID;
+            initializeColorControls();
+            updateVertexColorCache();
+            updateColorbarVisuals();
+            renderHistogram(meshData.histogram);
+        }
+
+        function setupHistogramListeners() {
+            const inputIds = ['hist-bins', 'hist-x-min', 'hist-x-max', 'hist-y-min', 'hist-y-max', 'hist-y-scale'];
+            inputIds.forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.addEventListener('change', () => renderHistogram(meshData?.histogram));
+            });
+
+            const resetBtn = document.getElementById('hist-reset-btn');
+            if (resetBtn) resetBtn.addEventListener('click', resetHistogramControls);
+        }
+
+        function renderHistogram(histogram, targetCanvas = histogramCanvas, scale = 1) {
+            if (!histogramPanel || !targetCanvas) {
+                return;
+            }
+            if (!histogram || !Array.isArray(histogram.buckets) || histogram.buckets.length === 0) {
+                histogramPanel.hidden = true;
+                return;
+            }
+
+            histogramPanel.hidden = false;
+            if (histogramSummary) {
+                histogramSummary.textContent = `Total: ${histogram.total}`;
+            }
+            if (histogramLegend) {
+                histogramLegend.innerHTML = `<span>Min: ${histogram.min.toFixed(0)}</span>` + `<span>Mean: ${histogram.mean.toFixed(0)}</span>` + `<span>Max: ${histogram.max.toFixed(0)}</span>`;
+            }
+
+            const xMinInput = document.getElementById('hist-x-min');
+            const xMaxInput = document.getElementById('hist-x-max');
+            const yMinInput = document.getElementById('hist-y-min');
+            const yMaxInput = document.getElementById('hist-y-max');
+            const binsInput = document.getElementById('hist-bins');
+            const yScaleSelect = document.getElementById('hist-y-scale');
+
+            // Initialize controls on first render
+            if (xMinInput && !xMinInput.dataset.initialized) {
+                xMinInput.value = histogram.min;
+                xMaxInput.value = histogram.max;
+                yMinInput.value = 0;
+                yMaxInput.value = '';
+                binsInput.value = 60;
+                xMinInput.dataset.initialized = 'true';
+                xMaxInput.dataset.initialized = 'true';
+                yMinInput.dataset.initialized = 'true';
+                yMaxInput.dataset.initialized = 'true';
+                binsInput.dataset.initialized = 'true';
+                yScaleSelect.dataset.initialized = 'true';
+            }
+
+            const ctx = targetCanvas.getContext('2d');
+            if (!ctx) {
+                return;
+            }
+
+            const width = targetCanvas.width / scale;
+            const height = targetCanvas.height / scale;
+
+            if (scale !== 1) {
+                ctx.save();
+                ctx.scale(scale, scale);
+            }
+
+            const padding = { top: 10, right: 25, bottom: 20, left: 35 };
+            const plotW = width - padding.left - padding.right;
+            const plotH = height - padding.top - padding.bottom;
+
+            ctx.clearRect(0, 0, width, height);
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.15)';
+            ctx.fillRect(0, 0, width, height);
+
+            let xMin = parseFloat(xMinInput.value) ?? histogram.min;
+            let xMax = parseFloat(xMaxInput.value) ?? histogram.max;
+            let yMin = parseFloat(yMinInput.value) ?? 0;
+            let yMax = yMaxInput.value === '' ? null : parseFloat(yMaxInput.value);
+            let numBins = parseInt(binsInput.value) || 60;
+            let yScale = yScaleSelect.value;
+
+            if (xMin >= xMax) [xMin, xMax] = [xMax - 0.1, xMin + 0.1];
+            if (yScale === 'log' && yMin <= 0) yMin = 1;
+
+            const binWidth = (xMax - xMin) / numBins;
+            const bins = new Array(numBins).fill(0);
+
+            // Move data in to requested bins
+            for (const bucket of histogram.buckets) {
+                if (bucket.value >= xMin && bucket.value < xMax) {
+                    const idx = Math.min(Math.floor((bucket.value - xMin) / binWidth), numBins - 1);
+                    bins[idx] += bucket.count;
+                }
+            }
+
+            const maxCount = Math.max(...bins);
+            if (yMax === null || yMax <= yMin) yMax = maxCount * 1.1;
+            if (yMax <= yMin) yMax = yMin + 1;
+
+            // Draw axes
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(padding.left, padding.top);
+            ctx.lineTo(padding.left, height - padding.bottom);
+            ctx.lineTo(width - padding.right, height - padding.bottom);
+            ctx.stroke();
+
+            // Coordinate mapping
+            const getY = (val) => {
+                if (yScale === 'log') {
+                    if (val <= 0) return height - padding.bottom;
+                    const logMin = Math.log10(yMin);
+                    const logMax = Math.log10(yMax);
+                    const logVal = Math.log10(val);
+                    const t = (logVal - logMin) / (logMax - logMin);
+                    return height - padding.bottom - t * plotH;
+                }
+                const t = (val - yMin) / (yMax - yMin);
+                return height - padding.bottom - t * plotH;
+            };
+
+            // Draw bars
+            ctx.fillStyle = '#64b5f6';
+            const barW = plotW / numBins;
+            for (let i = 0; i < numBins; i++) {
+                const h = getY(0) - getY(bins[i]);
+                const x = padding.left + i * barW;
+                const y = getY(bins[i]);
+                if (h > 0) ctx.fillRect(x + 1, y, Math.max(1, barW - 2), h);
+            }
+
+            // Draw Y-axis ticks and labels
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+            ctx.font = '10px Arial';
+            ctx.textAlign = 'right';
+            const yTicks = 5;
+            for (let i = 0; i <= yTicks; i++) {
+                let val;
+                if (yScale === 'log') {
+                    const logMin = Math.log10(yMin);
+                    const logMax = Math.log10(yMax);
+                    val = Math.pow(10, logMin + (i / yTicks) * (logMax - logMin));
+                } else {
+                    val = yMin + (i / yTicks) * (yMax - yMin);
+                }
+                const y = getY(val);
+                ctx.fillText(val.toFixed(0), padding.left - 4, y + 3);
+                ctx.beginPath();
+                ctx.moveTo(padding.left - 2, y);
+                ctx.lineTo(padding.left, y);
+                ctx.stroke();
+            }
+
+            // Draw X-axis ticks & labels
+            ctx.textAlign = 'center';
+            const xStep = Math.max(1, Math.floor(numBins / 5));
+            for (let i = 0; i <= numBins; i += xStep) {
+                const val = xMin + i * binWidth;
+                const x = padding.left + i * barW + barW / 2;
+                ctx.fillText(val.toFixed(1), x, height - padding.bottom + 12);
+                ctx.beginPath();
+                ctx.moveTo(x, height - padding.bottom);
+                ctx.lineTo(x, height - padding.bottom + 4);
+                ctx.stroke();
+            }
+
+            if (scale !== 1) {
+                ctx.restore();
+            }
+        }
+
+        function resetHistogramControls() {
+            if (!meshData?.histogram) {
+                return;
+            }
+            document.getElementById('hist-x-min').value = meshData.histogram.min;
+            document.getElementById('hist-x-max').value = meshData.histogram.max;
+            document.getElementById('hist-y-min').value = 0;
+            document.getElementById('hist-y-max').value = '';
+            document.getElementById('hist-bins').value = 60;
+            document.getElementById('hist-y-scale').value = 'linear';
+            renderHistogram(meshData.histogram);
+        }
+
+        function initializeColorControls() {
+            if (!colorControls) {
+                return;
+            }
+
+            if (colorMapSelect && !colorMapSelect.dataset.initialized) {
+                colorMapSelect.innerHTML = '';
+                Object.entries(COLOR_MAPS).forEach(([id, map]) => {
+                    const option = document.createElement('option');
+                    option.value = id;
+                    option.textContent = map.name;
+                    colorMapSelect.appendChild(option);
+                });
+                colorMapSelect.value = currentColormapId;
+                colorMapSelect.addEventListener('change', () => {
+                    currentColormapId = colorMapSelect.value;
+                    updateColorMapping(true);
+                });
+                colorMapSelect.dataset.initialized = 'true';
+            } else if (colorMapSelect) {
+                colorMapSelect.value = currentColormapId;
+            }
+
+            const applyRangeChange = () => {
+                const { min, max } = parseRangeInputs();
+                if (min === null || max === null) {
+                    return;
+                }
+
+                currentColorRange.min = Math.min(min, max);
+                currentColorRange.max = Math.max(min, max);
+                enforceColorRangeBounds();
+                syncColorRangeInputs();
+                updateColorMapping(true);
+            };
+
+            if (colorMinInput && !colorMinInput.dataset.initialized) {
+                colorMinInput.addEventListener('change', applyRangeChange);
+                colorMinInput.addEventListener('blur', applyRangeChange);
+                colorMinInput.dataset.initialized = 'true';
+            }
+
+            if (colorMaxInput && !colorMaxInput.dataset.initialized) {
+                colorMaxInput.addEventListener('change', applyRangeChange);
+                colorMaxInput.addEventListener('blur', applyRangeChange);
+                colorMaxInput.dataset.initialized = 'true';
+            }
+
+            if (colorResetButton && !colorResetButton.dataset.initialized) {
+                colorResetButton.addEventListener('click', () => {
+                    currentColorRange = { ...originalMaterialRange };
+                    syncColorRangeInputs();
+                    updateColorMapping(true);
+                });
+                colorResetButton.dataset.initialized = 'true';
+            }
+
+            if (colorControls && !colorControls.dataset.initialized) {
+                colorControls.addEventListener('pointerdown', event => event.stopPropagation());
+                colorControls.dataset.initialized = 'true';
+            }
+
+            syncColorRangeInputs();
+        }
+
+        function parseRangeInputs() {
+            const min = colorMinInput ? parseFloat(colorMinInput.value) : NaN;
+            const max = colorMaxInput ? parseFloat(colorMaxInput.value) : NaN;
+            return {
+                min: Number.isFinite(min) ? min : null,
+                max: Number.isFinite(max) ? max : null
+            };
+        }
+
+        function syncColorRangeInputs() {
+            if (colorMinInput) {
+                colorMinInput.value = currentColorRange.min.toFixed(3);
+                colorMinInput.min = originalMaterialRange.min.toFixed(3);
+                colorMinInput.max = originalMaterialRange.max.toFixed(3);
+            }
+            if (colorMaxInput) {
+                colorMaxInput.value = currentColorRange.max.toFixed(3);
+                colorMaxInput.min = originalMaterialRange.min.toFixed(3);
+                colorMaxInput.max = originalMaterialRange.max.toFixed(3);
+            }
+        }
+
+        function enforceColorRangeBounds() {
+            currentColorRange.min = Math.max(originalMaterialRange.min, Math.min(currentColorRange.min, originalMaterialRange.max));
+            currentColorRange.max = Math.max(originalMaterialRange.min, Math.min(currentColorRange.max, originalMaterialRange.max));
+            if (currentColorRange.max - currentColorRange.min < 1e-6) {
+                currentColorRange.max = currentColorRange.min + 1e-6;
+            }
+        }
+
+        function updateColorMapping(refreshSlices = true) {
+            if (!meshData) {
+                return;
+            }
+            sliceGeometryCache.clear();  // Clear slice cache to force regeneration with new colors
+            updateVertexColorCache();
+            if (meshObjects['3d']) {
+                applyVertexColorsToGeometry(meshObjects['3d'].geometry);
+            }
+            if (refreshSlices) {
+                if (currentViewMode === 'mesh_ct') {
+                    redrawCurrentSlices();
+                } else {
+                    ['x', 'y', 'z'].forEach(axis => regenerateSliceGeometry(axis));
+                }
+            }
+            updateColorbarVisuals();
+        }
+
+        function updateVertexColorCache() {
+            currentVertexColors = vertexValues.map(value => getColorForValue(value));
+        }
+
+        function normalizeMaterialValue(value) {
+            if (!Number.isFinite(value)) {
+                return 0.0;
+            }
+            const range = currentColorRange.max - currentColorRange.min;
+            if (range <= 0) {
+                return 0.5;
+            }
+            return Math.min(1.0, Math.max(0.0, (value - currentColorRange.min) / range));
+        }
+
+        function getColorForValue(value) {
+            return getColorFromMap(currentColormapId, normalizeMaterialValue(value));
+        }
+
+        function getColorFromMap(mapId, t) {
+            const map = COLOR_MAPS[mapId] || COLOR_MAPS[DEFAULT_COLORMAP_ID];
+            const stops = map.stops;
+            if (!stops || stops.length === 0) {
+                return [t, t, t];
+            }
+            if (t <= stops[0][0]) {
+                return hexToRgbFloats(stops[0][1]);
+            }
+            for (let i = 0; i < stops.length - 1; i++) {
+                const [t1, c1] = stops[i];
+                const [t2, c2] = stops[i + 1];
+                if (t <= t2) {
+                    const localT = (t - t1) / Math.max(t2 - t1, 1e-6);
+                    return lerpColor(hexToRgbFloats(c1), hexToRgbFloats(c2), localT);
+                }
+            }
+            return hexToRgbFloats(stops[stops.length - 1][1]);
+        }
+
+        function hexToRgbFloats(hex) {
+            const value = hex.replace('#', '');
+            const r = parseInt(value.substring(0, 2), 16);
+            const g = parseInt(value.substring(2, 4), 16);
+            const b = parseInt(value.substring(4, 6), 16);
+            return [r / 255, g / 255, b / 255];
+        }
+
+        function lerpColor(c1, c2, t) {
+            return [
+                c1[0] + (c2[0] - c1[0]) * t,
+                c1[1] + (c2[1] - c1[1]) * t,
+                c1[2] + (c2[2] - c1[2]) * t
+            ];
+        }
+
+        function rgbToCss(color) {
+            return `rgb(${Math.round(color[0] * 255)}, ${Math.round(color[1] * 255)}, ${Math.round(color[2] * 255)})`;
+        }
+
+        function updateColorbarVisuals() {
+            if (colorbarElement) {
+                const steps = 12;
+                const gradientStops = [];
+                for (let i = 0; i <= steps; i++) {
+                    const t = i / steps;
+                    const color = getColorFromMap(currentColormapId, t);
+                    gradientStops.push(`${rgbToCss(color)} ${(t * 100).toFixed(1)}%`);
+                }
+                colorbarElement.style.background = `linear-gradient(to top, ${gradientStops.join(', ')})`;
+            }
+            if (colorbarLabelMin) {
+                colorbarLabelMin.textContent = currentColorRange.min.toFixed(3);
+            }
+            if (colorbarLabelMax) {
+                colorbarLabelMax.textContent = currentColorRange.max.toFixed(3);
+            }
+            if (colorbarLabelMid) {
+                const mid = (currentColorRange.min + currentColorRange.max) / 2;
+                colorbarLabelMid.textContent = mid.toFixed(3);
+            }
+        }
+
+        function applyVertexColorsToGeometry(geometry) {
+            if (!geometry) {
+                return;
+            }
+            const positionAttribute = geometry.getAttribute('position');
+            if (!positionAttribute) {
+                return;
+            }
+            const vertexCount = positionAttribute.count;
+            let colorAttribute = geometry.getAttribute('color');
+            if (!colorAttribute || colorAttribute.count !== vertexCount) {
+                const colorArray = new Float32Array(vertexCount * 3);
+                colorAttribute = new THREE.BufferAttribute(colorArray, 3);
+                geometry.setAttribute('color', colorAttribute);
+            }
+            const array = colorAttribute.array;
+            for (let i = 0; i < vertexCount; i++) {
+                const color = currentVertexColors[i] || [0.5, 0.5, 0.5];
+                const offset = i * 3;
+                array[offset] = color[0];
+                array[offset + 1] = color[1];
+                array[offset + 2] = color[2];
+            }
+            colorAttribute.needsUpdate = true;
+        }
+
+        function regenerateSliceGeometry(axis) {
+            const scene = scenes[axis];
+            if (!scene) {
+                return;
+            }
+            const removable = [];
+            scene.traverse(child => {
+                if (child instanceof THREE.Mesh && child.material.vertexColors) {
+                    removable.push(child);
+                }
+            });
+            removable.forEach(obj => scene.remove(obj));
+            generateSliceGeometry(scene, axis);
+        }
+
+        function clampNumber(value, min, max) {
+            return Math.min(max, Math.max(min, value));
+        }
+
+        function getVisualizationBounds() {
+            if (currentViewMode === 'mesh_ct' && meshData?.ct_bounds) {
+                return meshData.ct_bounds;
+            }
+            return meshData?.bounds;
+        }
+
+        function initialiseMeshTransformControls (meshBounds, ctBounds) {
+            if (!transformControlsWrapper) {
+                return;
+            }
+
+            if (!transformControlsWrapper.dataset.initialized) {
+                transformControlsWrapper.addEventListener('pointerdown', event => event.stopPropagation());
+                transformControlsWrapper.addEventListener('pointermove', event => event.stopPropagation());
+                transformControlsWrapper.addEventListener('wheel', event => event.stopPropagation(), { passive: false });
+                transformControlsWrapper.dataset.initialized = 'true';
+            }
+
+            const meshExtents = {
+                x: Math.abs(meshBounds.max_x - meshBounds.min_x),
+                y: Math.abs(meshBounds.max_y - meshBounds.min_y),
+                z: Math.abs(meshBounds.max_z - meshBounds.min_z)
+            };
+            const primaryExtent = Math.max(meshExtents.x, meshExtents.y, meshExtents.z, 20);
+
+            ['x', 'y', 'z'].forEach(axis => {
+                const input = translationInputs[axis];
+                if (!input) {
+                    return;
+                }
+
+                const meshMinKey = `min_${axis}`;
+                const meshMaxKey = `max_${axis}`;
+                let minLimit = -Math.max(meshExtents[axis] * 0.75, primaryExtent * 0.5);
+                let maxLimit = Math.max(meshExtents[axis] * 0.75, primaryExtent * 0.5);
+
+                if (currentViewMode === 'mesh_ct' && ctBounds && Number.isFinite(ctBounds[meshMinKey]) && Number.isFinite(ctBounds[meshMaxKey])) {
+                    minLimit = ctBounds[meshMinKey];
+                    maxLimit = ctBounds[meshMaxKey];
+                } else if (ctBounds && Number.isFinite(ctBounds[meshMinKey]) && Number.isFinite(ctBounds[meshMaxKey])) {
+                    const meshMin = meshBounds[meshMinKey];
+                    const meshMax = meshBounds[meshMaxKey];
+                    const ctMin = ctBounds[meshMinKey];
+                    const ctMax = ctBounds[meshMaxKey];
+
+                    if (Number.isFinite(meshMin) && Number.isFinite(meshMax)) {
+                        const candidateMin = ctMin - meshMin;
+                        const candidateMax = ctMax - meshMax;
+
+                        if (candidateMin <= candidateMax) {
+                            minLimit = candidateMin;
+                            maxLimit = candidateMax;
+                        }
+                    }
+                }
+
+                // Limits are orderd and have a range
+                if (minLimit > maxLimit) {
+                    const fallbackLimit = Math.max(meshExtents[axis] * 0.75, primaryExtent * 0.5);
+                    minLimit = -fallbackLimit;
+                    maxLimit = fallbackLimit;
+                }
+
+                meshTranslationLimits[axis] = { min: minLimit, max: maxLimit };
+
+                const range = maxLimit - minLimit;
+                const step = Math.max(range > 0 ? range / 200 : 0, 0.1);
+                const clampedValue = clampNumber(meshTranslationState[axis], minLimit, maxLimit);
+                meshTranslationState[axis] = clampedValue;
+
+                input.min = minLimit.toFixed(2);
+                input.max = maxLimit.toFixed(2);
+                input.step = step.toFixed(2);
+                input.value = clampedValue.toFixed(2);
+                input.title = `${axis.toUpperCase()} translation: ${minLimit.toFixed(2)} to ${maxLimit.toFixed(2)} mm)`;
+
+                if (!input.dataset.initialized) {
+                    input.addEventListener('input', event => {
+                        const value = parseFloat(event.target.value);
+                        updateMeshTranslation(axis, Number.isFinite(value) ? value : 0);
+                    });
+                    input.addEventListener('pointerdown', event => event.stopPropagation());
+                    input.addEventListener('pointermove', event => event.stopPropagation());
+                    input.dataset.initialized = 'true';
+                }
+            });
+
+            ['x', 'y', 'z'].forEach(axis => {
+                const input = rotationInputs[axis];
+                if (!input) {
+                    return;
+                }
+
+                const limit = meshRotationLimits[axis];
+                input.min = (-limit).toFixed(1);
+                input.max = limit.toFixed(1);
+                input.step = '1';
+                input.value = meshRotationState[axis].toFixed(0);
+                input.title = `${axis.toUpperCase()} rotation (${(-limit).toFixed(0)}° to ${limit.toFixed(0)}°)`;
+
+                if (!input.dataset.initialized) {
+                    input.addEventListener('input', event => {
+                        const value = parseFloat(event.target.value);
+                        updateMeshRotation(axis, Number.isFinite(value) ? value : 0);
+                    });
+                    input.addEventListener('pointerdown', event => event.stopPropagation());
+                    input.addEventListener('pointermove', event => event.stopPropagation());
+                    input.dataset.initialized = 'true';
+                }
+            });
+
+            if (transformResetButton && !transformResetButton.dataset.initialized) {
+                transformResetButton.addEventListener('click', resetMeshTransformations);
+                transformResetButton.dataset.initialized = 'true';
+            }
+
+            updateAllTransformationLabels();
+            applyMeshTransforms();
+        }
+
+        function updateMeshTranslation(axis, value) {
+            if (!(axis in meshTranslationState)) {
+                return;
+            }
+            const limits = meshTranslationLimits[axis] || { min: -50, max: 50};
+            let minLimit = Number.isFinite(limits.min) ? limits.min : -50;
+            let maxLimit = Number.isFinite(limits.max) ? limits.max : 50;
+            if (minLimit > maxLimit) {
+                const temp = minLimit;
+                minLimit = maxLimit;
+                maxLimit = temp;
+            }
+            const clamped = clampNumber(value, minLimit, maxLimit);
+            meshTranslationState[axis] = clamped;
+
+            const input = translationInputs[axis];
+            if (input) {
+                input.value = clamped.toFixed(2);
+            }
+
+            updateTranslationValueLabel(axis);
+            applyMeshTransforms();
+        }
+
+        function updateMeshRotation(axis, value) {
+            if (!(axis in meshRotationState)) {
+                return;
+            }
+            const limit = meshRotationLimits[axis] ?? 180;
+            const clamped = clampNumber(value, -limit, limit);
+            meshRotationState[axis] = clamped;
+
+            const input = rotationInputs[axis];
+            if (input) {
+                input.value = clamped.toFixed(0);
+            }
+
+            updateRotationValueLabel(axis);
+            applyMeshTransforms();
+        }
+
+        function updateTranslationValueLabel(axis) {
+            const label = translationValueLabels[axis];
+            if (!label) {
+                return;
+            }
+            label.textContent = `${meshTranslationState[axis].toFixed(2)} mm`;
+        }
+
+        function updateRotationValueLabel(axis) {
+            const label = rotationValueLabels[axis];
+            if (!label) {
+                return;
+            }
+            label.textContent = `${meshRotationState[axis].toFixed(0)}°`;
+        }
+
+        function updateTranslationValueLabels() {
+            ['x', 'y', 'z'].forEach(updateTranslationValueLabel);
+        }
+
+        function updateRotationValueLabels() {
+            ['x', 'y', 'z'].forEach(updateRotationValueLabel);
+        }
+
+        function updateAllTransformationLabels() {
+            updateTranslationValueLabels();
+            updateRotationValueLabels();
+        }
+
+        function resetMeshTransformations() {
+            ['x', 'y', 'z'].forEach(axis => {
+                // Reset translations to zero to match CLI (rotation about origin then translate)
+                meshTranslationState[axis] = 0;
+                const translationInput = translationInputs[axis];
+                if (translationInput) {
+                    translationInput.value = meshTranslationState[axis].toFixed(2);
+                }
+                updateTranslationValueLabel(axis);
+
+                meshRotationState[axis] = 0;
+                const rotationInput = rotationInputs[axis];
+                if (rotationInput) {
+                    rotationInput.value = '0';
+                }
+                updateRotationValueLabel(axis);
+            });
+            applyMeshTransforms();
+        }
+
+        function applyMeshTransforms() {
+                if (!meshGroup) return;
+
+                rotationEuler.set(
+                    THREE.MathUtils.degToRad(meshRotationState.x),
+                    THREE.MathUtils.degToRad(meshRotationState.y),
+                    THREE.MathUtils.degToRad(meshRotationState.z),
+                    'XYZ'
+                );
+
+                translationVector.set(
+                    meshTranslationState.x,
+                    meshTranslationState.y,
+                    meshTranslationState.z
+                );
+
+                // Apply rotation about origin, then translation (match rust R*x + t)
+                meshGroup.rotation.set(rotationEuler.x, rotationEuler.y, rotationEuler.z);
+                meshGroup.position.set(translationVector.x, translationVector.y, translationVector.z);
+            meshGroup.updateMatrixWorld(true);
+            if (meshTransformPivot) {
+                meshTransformPivot.updateMatrixWorld(true);
+            }
+
+            updateTransformedVertexCache();
+            scheduleSliceRedraw();
+        }
+
+        function updateTransformedVertexCache() {
+            if (!baseMeshVertices || baseMeshVertices.length === 0) {
+                if (baseMeshVertices) {
+                    transformedMeshVertices = new Float32Array(baseMeshVertices.length);
+                    transformedMeshVertices.set(baseMeshVertices);
+                }
+                return;
+            }
+
+            if (!transformedMeshVertices || transformedMeshVertices.length !== baseMeshVertices.length) {
+                transformedMeshVertices = new Float32Array(baseMeshVertices.length);
+            }
+
+            rotationEuler.set(
+                THREE.MathUtils.degToRad(meshRotationState.x),
+                THREE.MathUtils.degToRad(meshRotationState.y),
+                THREE.MathUtils.degToRad(meshRotationState.z),
+                'XYZ'
+            );
+            rotationMatrix.makeRotationFromEuler(rotationEuler);
+            translationVector.set(
+                meshTranslationState.x,
+                meshTranslationState.y,
+                meshTranslationState.z
+            );
+
+            for (let i = 0; i < baseMeshVertices.length; i += 3) {
+                tempVector.set(baseMeshVertices[i], baseMeshVertices[i+1], baseMeshVertices[i+2]);
+                // Rotate about origin (no pivot) then translate to match CLI behaviour
+                tempVector.applyMatrix4(rotationMatrix);
+                tempVector.add(translationVector);
+
+                transformedMeshVertices[i] = tempVector.x;
+                transformedMeshVertices[i+1] = tempVector.y;
+                transformedMeshVertices[i+2] = tempVector.z;
+            }
+        }
+
+        function scheduleSliceRedraw() {
+            if (pendingSliceRedraw !== null) {
+                return;
+            }
+            pendingSliceRedraw = requestAnimationFrame(() => {
+                pendingSliceRedraw = null;
+                redrawCurrentSlices();
+            });
+        }
+
+        function redrawCurrentSlices() {
+            ['axial', 'sagittal', 'coronal'].forEach(plane => {
+                const sliceData = currentSliceData[plane];
+                if (sliceData) {
+                    drawCtSlice(plane, sliceData);
+                }
+            });
+        }
+
+        function getVertexTriple(vertices, vertexIndex) {
+            const baseIndex = vertexIndex * 3;
+            const x = vertices[baseIndex];
+            const y = vertices[baseIndex + 1];
+            const z = vertices[baseIndex + 2];
+            return [x, y, z];
+        }
+
+        function getCurrentMeshVertices() {
+            if (transformedMeshVertices && transformedMeshVertices.length === baseMeshVertices?.length && transformedMeshVertices.length > 0) {
+                return transformedMeshVertices;
+            }
+            if (baseMeshVertices && baseMeshVertices.length > 0) {
+                return baseMeshVertices;
+            }
+            // fallback to meshData structures returned from backend
+            return meshData?.mesh?.vertices || meshData?.vertices || [];
+        }
+
+        function addCtSlicePlanes() {
+            const bounds = meshData.ct_bounds;
+
+            const scene = scenes['3d'];
+            if (!scene) {
+                return;
+            }
+
+            // Calcualate CT dimensions for plane sizing
+            const ctWidth = bounds.max_x - bounds.min_x;
+            const ctHeight = bounds.max_y - bounds.min_y;
+            const ctDepth = bounds.max_z - bounds.min_z;
+
+            // Create material for CT slices
+            const axialMaterial = new THREE.MeshBasicMaterial({
+                color: PLANE_COLOUR.zPlane,
+                transparent: true,
+                opacity: 0.45,
+                side: THREE.DoubleSide
+            });
+            
+            const sagittalMaterial = new THREE.MeshBasicMaterial({
+                color: PLANE_COLOUR.yPlane,
+                transparent: true,
+                opacity: 0.45,
+                side: THREE.DoubleSide
+            });
+            
+            const coronalMaterial = new THREE.MeshBasicMaterial({
+                color: PLANE_COLOUR.xPlane,
+                transparent: true,
+                opacity: 0.45,
+                side: THREE.DoubleSide
+            });
+
+            // Create plane wireframe
+            const axialWireframeMaterial = new THREE.LineBasicMaterial({
+                color: PLANE_COLOUR.zPlane,
+                linewidth: 2
+            });
+            
+            const sagittalWireframeMaterial = new THREE.LineBasicMaterial({
+                color: PLANE_COLOUR.yPlane,
+                linewidth: 2
+            });
+            
+            const coronalWireframeMaterial = new THREE.LineBasicMaterial({
+                color: PLANE_COLOUR.xPlane,
+                linewidth: 2
+            });
+
+            // Plane with CT dimensions
+            const axialGeometry = new THREE.PlaneGeometry(ctWidth, ctHeight);
+            const sagittalGeometry = new THREE.PlaneGeometry(ctDepth, ctHeight);
+            const coronalGeometry = new THREE.PlaneGeometry(ctWidth, ctDepth);
+
+            // Wireframe outlines
+            const axialWireframe = new THREE.EdgesGeometry(axialGeometry);
+            const sagittalWireframe = new THREE.EdgesGeometry(sagittalGeometry);
+            const coronalWireframe = new THREE.EdgesGeometry(coronalGeometry);
+
+            // Axial plane (XY, perpendicular to Z)
+            ctSlicePlanes.axial = new THREE.Group();
+            const axialPlane = new THREE.Mesh(axialGeometry, axialMaterial);
+            const axialOutline = new THREE.LineSegments(axialWireframe, axialWireframeMaterial);
+            ctSlicePlanes.axial.add(axialPlane);
+            ctSlicePlanes.axial.add(axialOutline);
+            ctSlicePlanes.axial.rotation.x = 0; // XY plane
+            updateCtSlicePlanePosition('axial', parseInt(document.getElementById('z-slider').value));
+            scene.add(ctSlicePlanes.axial);
+            
+            // Sagittal plane (YZ, perpendicular to X)
+            ctSlicePlanes.sagittal = new THREE.Group();
+            const sagittalPlane = new THREE.Mesh(sagittalGeometry, sagittalMaterial);
+            const sagittalOutline = new THREE.LineSegments(sagittalWireframe, sagittalWireframeMaterial);
+            ctSlicePlanes.sagittal.add(sagittalPlane);
+            ctSlicePlanes.sagittal.add(sagittalOutline);
+            ctSlicePlanes.sagittal.rotation.y = Math.PI / 2; // YZ plane
+            updateCtSlicePlanePosition('sagittal', parseInt(document.getElementById('y-slider').value));
+            scene.add(ctSlicePlanes.sagittal);
+            
+            // Coronal plane (XZ, perpendicular to Y)
+            ctSlicePlanes.coronal = new THREE.Group();
+            const coronalPlane = new THREE.Mesh(coronalGeometry, coronalMaterial);
+            const coronalOutline = new THREE.LineSegments(coronalWireframe, coronalWireframeMaterial);
+            ctSlicePlanes.coronal.add(coronalPlane);
+            ctSlicePlanes.coronal.add(coronalOutline);
+            ctSlicePlanes.coronal.rotation.x = Math.PI / 2; // XZ plane
+            updateCtSlicePlanePosition('coronal', parseInt(document.getElementById('x-slider').value));
+            scene.add(ctSlicePlanes.coronal);
+            
+            // Add text labels for each plane
+            addPlaneLabels();
+        }
+
+        function addPlaneLabels() {
+            if (!planeLabelLayer) {
+                planeLabelLayer = document.createElement('div');
+                planeLabelLayer.className = 'plane-label-layer';
+                const container = document.getElementById('quadrant-3d');
+                if (container) {
+                    container.appendChild(planeLabelLayer);
+                }
+            }
+
+            planeLabelMarkers.length = 0;
+            planeLabelLayer.innerHTML = '';
+
+            function attachPlaneLabel(plane, text, color, localPosition) {
+                const label = document.createElement('div');
+                label.className = 'plane-label';
+                label.textContent = text;
+                label.style.color = color;
+                planeLabelLayer.appendChild(label);
+                planeLabelMarkers.push({ element: label, plane, localPosition: localPosition.clone() });
+            }
+
+            const bounds = meshData.ct_bounds;
+            const ctWidth = bounds.max_x - bounds.min_x;
+            const ctHeight = bounds.max_y - bounds.min_y;
+            const ctDepth = bounds.max_z - bounds.min_z;
+            const margin = Math.max(Math.min(ctWidth, ctHeight, ctDepth) * 0.04, 4);
+
+            // Anchor labels to the top-right edge of each plane in local plane coordinates.
+            attachPlaneLabel('axial', 'Axial (Z)', PLANE_COLOUR.zPlane, new THREE.Vector3(ctWidth / 2, ctHeight / 2 + margin, 0));
+            attachPlaneLabel('sagittal', 'Sagittal (X)', PLANE_COLOUR.xPlane, new THREE.Vector3(ctDepth / 2, ctHeight / 2 + margin, 0));
+            attachPlaneLabel('coronal', 'Coronal (Y)', PLANE_COLOUR.yPlane, new THREE.Vector3(ctWidth / 2, ctDepth / 2 + margin, 0));
+        }
+
+        function updatePlaneLabelPositions() {
+            const camera = cameras['3d'];
+            const renderer = renderers['3d'];
+            const container = document.getElementById('quadrant-3d');
+            if (!camera || !renderer || !container || planeLabelMarkers.length === 0) {
+                return;
+            }
+
+            const rect = container.getBoundingClientRect();
+            const viewportWidth = rect.width || 1;
+            const viewportHeight = rect.height || 1;
+            const worldPosition = new THREE.Vector3();
+            const projected = new THREE.Vector3();
+
+            planeLabelMarkers.forEach(({ element, plane, localPosition }) => {
+                const planeGroup = ctSlicePlanes[plane];
+                if (!planeGroup) {
+                    element.style.display = 'none';
+                    return;
+                }
+
+                planeGroup.updateMatrixWorld(true);
+                worldPosition.copy(localPosition).applyMatrix4(planeGroup.matrixWorld);
+                projected.copy(worldPosition).project(camera);
+
+                const visible = projected.z >= -1 && projected.z <= 1;
+                if (!visible) {
+                    element.style.display = 'none';
+                    return;
+                }
+
+                const x = ((projected.x + 1) / 2) * viewportWidth;
+                const y = ((1 - projected.y) / 2) * viewportHeight;
+                element.style.display = 'block';
+                element.style.left = `${x}px`;
+                element.style.top = `${y}px`;
+
+                const distance = camera.position.distanceTo(worldPosition);
+                const scale = camera.isPerspectiveCamera ? Math.min(Math.max(1.2 - distance / 2000, 0.9), 1.15) : 1;
+                element.style.transform = `translate(-100%, -100%) scale(${scale})`;
+            });
+        }
+
+        function updateCtSlicePlanePosition(plane, sliceIndex) {
+            if (!ctSlicePlanes[plane] || !meshData) return;
+            
+            const bounds = meshData.ct_bounds;
+            const totalSlices = meshData.total_slices;
+            
+            switch (plane) {
+                case 'axial':
+                    const zPos = bounds.min_z + (sliceIndex / (totalSlices[0] - 1)) * 
+                                (bounds.max_z - bounds.min_z);
+                    ctSlicePlanes.axial.position.set(
+                        (bounds.min_x + bounds.max_x) / 2,
+                        (bounds.min_y + bounds.max_y) / 2,
+                        zPos
+                    );
+                    break;
+                    
+                case 'sagittal':
+                    const xPos = bounds.min_x + (sliceIndex / (totalSlices[1] - 1)) * 
+                                (bounds.max_x - bounds.min_x);
+                    ctSlicePlanes.sagittal.position.set(
+                        xPos,
+                        (bounds.min_y + bounds.max_y) / 2,
+                        (bounds.min_z + bounds.max_z) / 2
+                    );
+                    break;
+                    
+                case 'coronal':
+                    const yPos = bounds.min_y + (sliceIndex / (totalSlices[2] - 1)) * 
+                                (bounds.max_y - bounds.min_y);
+                    ctSlicePlanes.coronal.position.set(
+                        (bounds.min_x + bounds.max_x) / 2,
+                        yPos,
+                        (bounds.min_z + bounds.max_z) / 2
+                    );
+                    break;
+            }
+        }
+
+        function initCtViews() {
+            // Get canvas elements
+            axialCanvas = document.getElementById('axial-canvas');
+            sagittalCanvas = document.getElementById('sagittal-canvas');
+            coronalCanvas = document.getElementById('coronal-canvas');
+            
+            axialCtx = axialCanvas.getContext('2d');
+            sagittalCtx = sagittalCanvas.getContext('2d');
+            coronalCtx = coronalCanvas.getContext('2d');
+
+            const ctSliceCounts = meshData.total_slices || [1, 1, 1];
+            const sliderConfigs = [
+                { slider: document.getElementById('z-slider'), value: ctSliceCounts[0] },
+                { slider: document.getElementById('y-slider'), value: ctSliceCounts[1] },
+                { slider: document.getElementById('x-slider'), value: ctSliceCounts[2] }
+            ];
+
+            sliderConfigs.forEach(({ slider, value }) => {
+                if (!slider) {
+                    return;
+                }
+                const maxIndex = Math.max(0, value - 1);
+                slider.min = '0';
+                slider.max = String(maxIndex);
+                slider.step = '1';
+                slider.value = String(Math.floor(maxIndex / 2));
+            });
+            
+            // Resize canvases to fit containers
+            resizeCtCanvases();
+            
+            // Fetch and draw initial slices via API.
+            // Defer the expensive mesh overlay so the first paint is responsive.
+            requestAnimationFrame(() => {
+                requestCtSliceUpdate('z');
+                requestCtSliceUpdate('y');
+                requestCtSliceUpdate('x');
+            });
+
+            initCtInteractions();
+          }
+
+        function resizeCtCanvases() {
+            const containers = [
+                document.getElementById('quadrant-z'),
+                document.getElementById('quadrant-y'),
+                document.getElementById('quadrant-x')
+            ];
+            const canvases = [axialCanvas, sagittalCanvas, coronalCanvas];
+            
+            for (let i = 0; i < canvases.length; i++) {
+                const rect = containers[i].getBoundingClientRect();
+                const controlOffset = 50;
+                const targetHeight = Math.max(rect.height - controlOffset, 0);
+                canvases[i].width = rect.width;
+                canvases[i].height = targetHeight;
+                canvases[i].style.width = `${rect.width}px`;
+                canvases[i].style.height = `${targetHeight}px`;
+            }
+        }
+
+        function buildRenderedSliceCanvas(sliceData) {
+            if (!sliceData) {
+                return null;
+            }
+
+            const cacheKey = sliceData.cacheKey || `${sliceData.width}x${sliceData.height}:${sliceData.value_range[0]}:${sliceData.value_range[1]}:${sliceData.data.length}`;
+            if (renderedSliceCache.has(cacheKey)) {
+                return renderedSliceCache.get(cacheKey);
+            }
+
+            const renderCanvas = document.createElement('canvas');
+            renderCanvas.width = sliceData.width;
+            renderCanvas.height = sliceData.height;
+
+            const renderCtx = renderCanvas.getContext('2d', { alpha: false, willReadFrequently: false });
+            if (!renderCtx) {
+                return null;
+            }
+
+            const imageData = renderCtx.createImageData(sliceData.width, sliceData.height);
+            const data = imageData.data;
+            const minVal = sliceData.value_range[0];
+            const maxVal = sliceData.value_range[1];
+            const range = maxVal - minVal;
+            const normalizedRange = range > 0 ? 255 / range : 0;
+            const sliceDataArray = ArrayBuffer.isView(sliceData.data) ? sliceData.data : new Float32Array(sliceData.data);
+
+            for (let i = 0; i < sliceDataArray.length; i++) {
+                const intensity = range > 0 ? Math.max(0, Math.min(255, Math.floor((sliceDataArray[i] - minVal) * normalizedRange))) : 0;
+                const pixelIndex = i * 4;
+                data[pixelIndex] = intensity;
+                data[pixelIndex + 1] = intensity;
+                data[pixelIndex + 2] = intensity;
+                data[pixelIndex + 3] = 255;
+            }
+
+            renderCtx.putImageData(imageData, 0, 0);
+            renderedSliceCache.set(cacheKey, renderCanvas);
+            return renderCanvas;
+        }
+
+        function drawCtSlice(plane, sliceData, includeOverlay = true) {
+            if (sliceData) {
+                currentSliceData[plane] = sliceData;
+            }
+            let canvas, ctx;
+            
+            switch (plane) {
+                case 'axial':
+                    canvas = axialCanvas;
+                    ctx = axialCtx;
+                    break;
+                case 'sagittal':
+                    canvas = sagittalCanvas;
+                    ctx = sagittalCtx;
+                    break;
+                case 'coronal':
+                    canvas = coronalCanvas;
+                    ctx = coronalCtx;
+                    break;
+            }
+            
+            const renderedCanvas = buildRenderedSliceCanvas(sliceData);
+            if (!renderedCanvas) {
+                return;
+            }
+
+            const scaleX = canvas.width / sliceData.width;
+            const scaleY = canvas.height / sliceData.height;
+            const scale = Math.min(scaleX, scaleY);
+
+            const drawWidth = sliceData.width * scale;
+            const drawHeight = sliceData.height * scale;
+            const offsetX = (canvas.width - drawWidth) / 2;
+            const offsetY = (canvas.height - drawHeight) / 2;
+
+            if (!window.ctRenderMetrics) window.ctRenderMetrics = {};
+            window.ctRenderMetrics[plane] = { offsetX, offsetY, drawWidth, drawHeight };
+
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            ctx.imageSmoothingEnabled = true;
+            ctx.imageSmoothingQuality = 'medium';
+
+            ctx.save();
+
+            ctx.drawImage(renderedCanvas, offsetX, offsetY, drawWidth, drawHeight);
+
+            if (includeOverlay) {
+                drawMeshProjection(ctx, plane, offsetX, offsetY, drawWidth, drawHeight, scale, sliceData);
+                drawCalibrationRoiOverlay(ctx, plane, offsetX, offsetY, drawWidth, drawHeight, sliceData);
+            }
+
+            ctx.restore();
+        }
+
+        function drawCalibrationRoiOverlay(ctx, plane, offsetX, offsetY, drawWidth, drawHeight, sliceData) { 
+            // 1. Better error logging to see exactly why it's failing in the console
+            let manager = null;
+            if (typeof calibrationManager !== 'undefined') {
+                manager = calibrationManager;
+            } else if (window.calibrationManager) {
+                manager = window.calibrationManager;
+            }
+            if (!manager) {
+                console.warn(`ROI Overlay [${plane}]: calibrationManager not found on window object.`);
+                return; 
+            }
+            if (!Array.isArray(manager.rois) || manager.rois.length === 0 || !sliceData) { 
+                return; 
+            } 
+
+            const sliderIdByPlane = { 
+                axial: 'z-slider', 
+                sagittal: 'y-slider',
+                coronal: 'x-slider'
+            }; 
+
+            const slider = document.getElementById(sliderIdByPlane[plane]); 
+            if (!slider) { 
+                console.warn(`ROI Overlay [${plane}]: slider ${sliderIdByPlane[plane]} not found.`);
+                return; 
+            }
+
+            const bounds = getVisualizationBounds(); 
+            const maxVal = parseFloat(slider.max) || 1;
+            const sliderVal = parseFloat(slider.value) / maxVal;
+            let currentPhyicalPos = 0; 
+
+            if (plane === 'axial') { currentPhyicalPos = bounds.min_z + (bounds.max_z - bounds.min_z) * sliderVal; }  
+            if (plane === 'sagittal') { currentPhyicalPos = bounds.min_x + (bounds.max_x - bounds.min_x) * sliderVal; }  
+            if (plane === 'coronal') { currentPhyicalPos = bounds.min_y + (bounds.max_y - bounds.min_y) * sliderVal; } 
+            
+            // 2. Add a tolerance so thin boxes aren't skipped by precise float slider values
+            const tolerance = 2.0; 
+
+            const axisRanges = { 
+                axial: { 
+                    crosses: roi => currentPhyicalPos >= Math.min(roi.z.start, roi.z.end) - tolerance && currentPhyicalPos <= Math.max(roi.z.start, roi.z.end) + tolerance, 
+                    xStart: roi => roi.x.start, 
+                    xEnd: roi => roi.x.end, 
+                    yStart: roi => roi.y.start, 
+                    yEnd: roi => roi.y.end, 
+                    minX: bounds.min_x, 
+                    maxX: bounds.max_x, 
+                    minY: bounds.min_y, 
+                    maxY: bounds.max_y 
+                }, 
+                sagittal: { 
+                    crosses: roi => currentPhyicalPos >= Math.min(roi.x.start, roi.x.end) - tolerance && currentPhyicalPos <= Math.max(roi.x.start, roi.x.end) + tolerance, 
+                    xStart: roi => roi.z.start, 
+                    xEnd: roi => roi.z.end, 
+                    yStart: roi => roi.y.start, 
+                    yEnd: roi => roi.y.end, 
+                    minX: bounds.min_z, 
+                    maxX: bounds.max_z, 
+                    minY: bounds.min_y, 
+                    maxY: bounds.max_y 
+                }, 
+                coronal: { 
+                    crosses: roi => currentPhyicalPos >= Math.min(roi.y.start, roi.y.end) - tolerance && currentPhyicalPos <= Math.max(roi.y.start, roi.y.end) + tolerance, 
+                    xStart: roi => roi.x.start, 
+                    xEnd: roi => roi.x.end, 
+                    yStart: roi => roi.z.start, 
+                    yEnd: roi => roi.z.end, 
+                    minX: bounds.min_x, 
+                    maxX: bounds.max_x, 
+                    minY: bounds.min_z, 
+                    maxY: bounds.max_z 
+                } 
+            }; 
+
+            const config = axisRanges[plane]; 
+            if (!config) { 
+                return; 
+            } 
+
+            ctx.save(); 
+            // 3. Made the lines much brighter and thicker so they don't blend into the CT scan
+            ctx.lineWidth = 3; 
+
+            manager.rois.forEach(roi => { 
+                if (!config.crosses(roi)) { 
+                    return; 
+                } 
+
+                const x0 = Math.min(config.xStart(roi), config.xEnd(roi)); 
+                const x1 = Math.max(config.xStart(roi), config.xEnd(roi)); 
+                const y0 = Math.min(config.yStart(roi), config.yEnd(roi)); 
+                const y1 = Math.max(config.yStart(roi), config.yEnd(roi)); 
+
+                const normX0 = (x0 - config.minX) / (config.maxX - config.minX); 
+                const normX1 = (x1 - config.minX) / (config.maxX - config.minX); 
+                const normY0 = (y0 - config.minY) / (config.maxY - config.minY); 
+                const normY1 = (y1 - config.minY) / (config.maxY - config.minY); 
+
+                const left = offsetX + normX0 * drawWidth; 
+                const top = offsetY + normY0 * drawHeight; 
+                
+                // 4. Enforce a minimum rendered size of 4 pixels so tiny ROIs are always visible
+                const width = Math.max(4, (normX1 - normX0) * drawWidth); 
+                const height = Math.max(4, (normY1 - normY0) * drawHeight);
+
+                ctx.strokeStyle = roi.colorCss || '#00ffcc';
+                ctx.fillStyle = roi.colorCss || '#00ffcc';
+
+                ctx.globalAlpha = 0.25;
+                ctx.fillRect(left, top, width, height);
+                ctx.globalAlpha = 0.8;
+                ctx.strokeRect(left, top, width, height); 
+            }); 
+
+            ctx.restore(); 
+        }
+
+        function initCtInteractions() {
+            const canvases = [
+                { plane: 'axial', canvas: axialCanvas },
+                { plane: 'sagittal', canvas: sagittalCanvas },
+                { plane: 'coronal', canvas: coronalCanvas }
+            ];
+
+            let activeDrag = null;
+
+            function getPhysCoords(e, plane, canvas) {
+                if (!window.ctRenderMetrics) return null;
+                const metrics = window.ctRenderMetrics[plane];
+                const bounds = getVisualizationBounds();
+                if (!metrics || !bounds) return null;
+
+                const rect = canvas.getBoundingClientRect();
+                const normX = (e.clientX - rect.left - metrics.offsetX) / metrics.drawWidth;
+                const normY = (e.clientY - rect.top - metrics.offsetY) / metrics.drawHeight;
+
+                let physX, physY, axisX, axisY;
+                
+                if (plane === 'axial') {
+                    axisX = 'x'; axisY = 'y';
+                    physX = bounds.min_x + normX * (bounds.max_x - bounds.min_x);
+                    physY = bounds.min_y + normY * (bounds.max_y - bounds.min_y);
+                } else if (plane === 'sagittal') {
+                    axisX = 'z'; axisY = 'y';
+                    physX = bounds.min_z + normX * (bounds.max_z - bounds.min_z);
+                    physY = bounds.min_y + normY * (bounds.max_y - bounds.min_y);
+                } else if (plane === 'coronal') {
+                    axisX = 'x'; axisY = 'z';
+                    physX = bounds.min_x + normX * (bounds.max_x - bounds.min_x);
+                    physY = bounds.min_z + normY * (bounds.max_z - bounds.min_z);
+                }
+
+                const tolX = (8 / metrics.drawWidth) * (bounds[`max_${axisX}`] - bounds[`min_${axisX}`]);
+                const tolY = (8 / metrics.drawHeight) * (bounds[`max_${axisY}`] - bounds[`min_${axisY}`]);
+
+                return { physX, physY, axisX, axisY, tolX, tolY };
+            }
+
+            canvases.forEach(({ plane, canvas }) => {
+                canvas.addEventListener('mousedown', (e) => {
+                    try {
+                        const manager = window.calibrationManager;
+                        if (!manager || !manager.rois || !manager.rois.length) return;
+
+                        const coords = getPhysCoords(e, plane, canvas);
+                        if (!coords) return;
+
+                        for (let i = manager.rois.length - 1; i >= 0; i--) {
+                            const roi = manager.rois[i];
+                            const minX = Math.min(roi[coords.axisX].start, roi[coords.axisX].end);
+                            const maxX = Math.max(roi[coords.axisX].start, roi[coords.axisX].end);
+                            const minY = Math.min(roi[coords.axisY].start, roi[coords.axisY].end);
+                            const maxY = Math.max(roi[coords.axisY].start, roi[coords.axisY].end);
+
+                            if (coords.physX >= minX - coords.tolX && coords.physX <= maxX + coords.tolX &&
+                                coords.physY >= minY - coords.tolY && coords.physY <= maxY + coords.tolY) {
+                                
+                                let action = 'move';
+                                if (Math.abs(coords.physX - minX) <= coords.tolX) action = 'resize-left';
+                                else if (Math.abs(coords.physX - maxX) <= coords.tolX) action = 'resize-right';
+                                else if (Math.abs(coords.physY - minY) <= coords.tolY) action = 'resize-top';
+                                else if (Math.abs(coords.physY - maxY) <= coords.tolY) action = 'resize-bottom';
+
+                                activeDrag = { roi, index: i, action, axisX: coords.axisX, axisY: coords.axisY, lastX: coords.physX, lastY: coords.physY };
+                                canvas.style.cursor = action === 'move' ? 'grabbing' : 'crosshair';
+                                return; 
+                            }
+                        }
+                    } catch (err) {
+                        console.error("Error in mousedown:", err);
+                    }
+                });
+
+                canvas.addEventListener('mousemove', (e) => {
+                    if (!activeDrag) return;
+
+                    try {
+                        const coords = getPhysCoords(e, plane, canvas);
+                        if (!coords) return;
+
+                        const dx = coords.physX - activeDrag.lastX;
+                        const dy = coords.physY - activeDrag.lastY;
+                        const { roi, axisX, axisY, action } = activeDrag;
+
+                        // Helper to safely apply resize without ever causing negative bounds
+                        const safeApply = (axis, delta, isMin) => {
+                            const isStartSmaller = roi[axis].start <= roi[axis].end;
+                            let min = isStartSmaller ? roi[axis].start : roi[axis].end;
+                            let max = isStartSmaller ? roi[axis].end : roi[axis].start;
+
+                            if (isMin) {
+                                min += delta;
+                                if (min >= max - 1) min = max - 1; // Prevent crossing
+                            } else {
+                                max += delta;
+                                if (max <= min + 1) max = min + 1; // Prevent crossing
+                            }
+
+                            if (isStartSmaller) { roi[axis].start = min; roi[axis].end = max; }
+                            else { roi[axis].start = max; roi[axis].end = min; }
+                        };
+
+                        if (action === 'move') {
+                            roi[axisX].start += dx; roi[axisX].end += dx;
+                            roi[axisY].start += dy; roi[axisY].end += dy;
+                        } else if (action === 'resize-left') { safeApply(axisX, dx, true); }
+                        else if (action === 'resize-right') { safeApply(axisX, dx, false); }
+                        else if (action === 'resize-top') { safeApply(axisY, dy, true); }
+                        else if (action === 'resize-bottom') { safeApply(axisY, dy, false); }
+
+                        activeDrag.lastX = coords.physX;
+                        activeDrag.lastY = coords.physY;
+
+                        // Force the 2D overlays to redraw
+                        window.dispatchEvent(new Event('calibration-roi-updated'));
+                        
+                        // IMPORTANT: Tell the 3D manager to update its meshes so it doesn't fall out of sync
+                        if (window.calibrationManager && typeof window.calibrationManager.update3DBoxVisual === 'function') {
+                            window.calibrationManager.update3DBoxVisual(activeDrag.roi);
+                        } else if (window.calibrationManager && typeof window.calibrationManager.syncUIFrom3D === 'function') {
+                            window.calibrationManager.syncUIFrom3D(); 
+                        }
+
+                    } catch (err) {
+                        console.error("Error during drag:", err);
+                        activeDrag = null;
+                    }
+                });
+            });
+
+            window.addEventListener('mouseup', () => {
+                if (activeDrag) {
+                    const manager = window.calibrationManager;
+                    if (manager) {
+                        const rowEl = manager.container.querySelector(`[data-id="${activeDrag.roi.id}"]`);
+                        if (rowEl) {
+                            rowEl.querySelector('.slice-start-x').value = Math.round(activeDrag.roi.x.start);
+                            rowEl.querySelector('.slice-end-x').value = Math.round(activeDrag.roi.x.end);
+                            rowEl.querySelector('.slice-start-y').value = Math.round(activeDrag.roi.y.start);
+                            rowEl.querySelector('.slice-end-y').value = Math.round(activeDrag.roi.y.end);
+                            rowEl.querySelector('.slice-start-z').value = Math.round(activeDrag.roi.z.start);
+                            rowEl.querySelector('.slice-end-z').value = Math.round(activeDrag.roi.z.end);
+                        }
+                        activeDrag.roi.samplePromise = manager.sampleVoxelData(activeDrag.roi);
+                    }
+
+                    canvases.forEach(c => c.canvas.style.cursor = 'default');
+                    activeDrag = null;
+                }
+            });
+        }
+
+        function drawMeshProjection(ctx, plane, offsetX, offsetY, drawWidth, drawHeight, scale, sliceData) {
+            if (!meshData) return;
+            const facesAvailable = meshData.mesh?.faces || meshData.faces;
+            if (!facesAvailable || facesAvailable.length === 0) {
+                return;
+            }
+            
+            ctx.save();
+            
+            // Mesh overlay style
+            ctx.strokeStyle = '#ff6b6b';
+            ctx.lineWidth = 1;
+            ctx.globalAlpha = 0.8;
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+            
+            // Get current slice position
+            let slicePosition;
+            switch (plane) {
+                case 'axial':
+                    slicePosition = parseInt(document.getElementById('z-slider').value);
+                    drawAxialMeshProjection(ctx, slicePosition, offsetX, offsetY, drawWidth, drawHeight, scale, sliceData);
+                    break;
+                case 'sagittal':
+                    slicePosition = parseInt(document.getElementById('y-slider').value);
+                    drawSagittalMeshProjection(ctx, slicePosition, offsetX, offsetY, drawWidth, drawHeight, scale, sliceData);
+                    break;
+                case 'coronal':
+                    slicePosition = parseInt(document.getElementById('x-slider').value);
+                    drawCoronalMeshProjection(ctx, slicePosition, offsetX, offsetY, drawWidth, drawHeight, scale, sliceData);
+                    break;
+            }
+            
+            ctx.restore();
+        }
+
+        // Projection functions
+        function drawAxialMeshProjection(ctx, zSlice, offsetX, offsetY, drawWidth, drawHeight, scale, sliceData) {
+            const ctBounds = meshData.ct_bounds;
+            const totalSlices = meshData.total_slices;
+            
+            const zPosition = ctBounds.min_z + (zSlice / (totalSlices[0] - 1)) * (ctBounds.max_z - ctBounds.min_z);
+            const tolerance = (ctBounds.max_z - ctBounds.min_z) / totalSlices[0];
+            
+            const xScale = drawWidth / (ctBounds.max_x - ctBounds.min_x);
+            const yScale = drawHeight / (ctBounds.max_y - ctBounds.min_y);
+            
+            const path = new Path2D();
+            let hasElements = false;
+            let faceCount = 0;
+            
+            const faces = meshData.mesh?.faces || meshData.faces || [];
+            const vertices = getCurrentMeshVertices();
+            
+            for (let i = 0; i < faces.length; i += 3) {
+                const f0 = faces[i];
+                const f1 = faces[i + 1];
+                const f2 = faces[i + 2];
+                const v1 = getVertexTriple(vertices, f0);
+                const v2 = getVertexTriple(vertices, f1);
+                const v3 = getVertexTriple(vertices, f2);
+                
+                if (Math.abs(v1[2] - zPosition) < tolerance || 
+                    Math.abs(v2[2] - zPosition) < tolerance || 
+                    Math.abs(v3[2] - zPosition) < tolerance) {
+                    
+                    const x1 = offsetX + (v1[0] - ctBounds.min_x) * xScale;
+                    const y1 = offsetY + (v1[1] - ctBounds.min_y) * yScale;
+                    const x2 = offsetX + (v2[0] - ctBounds.min_x) * xScale;
+                    const y2 = offsetY + (v2[1] - ctBounds.min_y) * yScale;
+                    const x3 = offsetX + (v3[0] - ctBounds.min_x) * xScale;
+                    const y3 = offsetY + (v3[1] - ctBounds.min_y) * yScale;
+                    
+                    path.moveTo(x1, y1);
+                    path.lineTo(x2, y2);
+                    path.lineTo(x3, y3);
+                    path.closePath();
+                    hasElements = true;
+                    faceCount++;
+                }
+            }
+            
+            if (hasElements) ctx.stroke(path);
+        }
+
+        function drawSagittalMeshProjection(ctx, xSlice, offsetX, offsetY, drawWidth, drawHeight, scale, sliceData) {
+            const ctBounds = meshData.ct_bounds;
+            const totalSlices = meshData.total_slices;
+            const xPosition = ctBounds.min_x + (xSlice / (totalSlices[1] - 1)) * (ctBounds.max_x - ctBounds.min_x);
+            const tolerance = (ctBounds.max_x - ctBounds.min_x) / totalSlices[1];
+
+            const zScale = drawWidth / (ctBounds.max_z - ctBounds.min_z);
+            const yScale = drawHeight / (ctBounds.max_y - ctBounds.min_y);
+            
+            const path = new Path2D();
+            let hasElements = false;
+            
+            const faces = meshData.mesh?.faces || meshData.faces || [];
+            const vertices = getCurrentMeshVertices();
+            
+            for (let i = 0; i < faces.length; i += 3) {
+                const f0 = faces[i];
+                const f1 = faces[i + 1];
+                const f2 = faces[i + 2];
+                const v1 = getVertexTriple(vertices, f0);
+                const v2 = getVertexTriple(vertices, f1);
+                const v3 = getVertexTriple(vertices, f2);
+                
+                if (Math.abs(v1[0] - xPosition) < tolerance || 
+                    Math.abs(v2[0] - xPosition) < tolerance || 
+                    Math.abs(v3[0] - xPosition) < tolerance) {
+                    
+                    const x1 = offsetX + (v1[2] - ctBounds.min_z) * zScale;
+                    const y1 = offsetY + (v1[1] - ctBounds.min_y) * yScale;
+                    const x2 = offsetX + (v2[2] - ctBounds.min_z) * zScale;
+                    const y2 = offsetY + (v2[1] - ctBounds.min_y) * yScale;
+                    const x3 = offsetX + (v3[2] - ctBounds.min_z) * zScale;
+                    const y3 = offsetY + (v3[1] - ctBounds.min_y) * yScale;
+                    
+                    path.moveTo(x1, y1);
+                    path.lineTo(x2, y2);
+                    path.lineTo(x3, y3);
+                    path.closePath();
+                    hasElements = true;
+                }
+            }
+            
+            if (hasElements) ctx.stroke(path);
+        }
+
+        function drawCoronalMeshProjection(ctx, ySlice, offsetX, offsetY, drawWidth, drawHeight, scale, sliceData) {
+            const ctBounds = meshData.ct_bounds;
+            const totalSlices = meshData.total_slices;
+            const yPosition = ctBounds.min_y + (ySlice / (totalSlices[2] - 1)) * (ctBounds.max_y - ctBounds.min_y);
+            const tolerance = (ctBounds.max_y - ctBounds.min_y) / totalSlices[2];
+            const xScale = drawWidth / (ctBounds.max_x - ctBounds.min_x);
+            const zScale = drawHeight / (ctBounds.max_z - ctBounds.min_z);
+            
+            const path = new Path2D();
+            let hasElements = false;
+            
+            const faces = meshData.mesh?.faces || meshData.faces || [];
+            const vertices = getCurrentMeshVertices();
+            
+            for (let i = 0; i < faces.length; i += 3) {
+                const f0 = faces[i];
+                const f1 = faces[i + 1];
+                const f2 = faces[i + 2];
+                const v1 = getVertexTriple(vertices, f0);
+                const v2 = getVertexTriple(vertices, f1);
+                const v3 = getVertexTriple(vertices, f2);
+                
+                if (Math.abs(v1[1] - yPosition) < tolerance || 
+                    Math.abs(v2[1] - yPosition) < tolerance || 
+                    Math.abs(v3[1] - yPosition) < tolerance) {
+                    
+                    const x1 = offsetX + (v1[0] - ctBounds.min_x) * xScale;
+                    const y1 = offsetY + (v1[2] - ctBounds.min_z) * zScale;
+                    const x2 = offsetX + (v2[0] - ctBounds.min_x) * xScale;
+                    const y2 = offsetY + (v2[2] - ctBounds.min_z) * zScale;
+                    const x3 = offsetX + (v3[0] - ctBounds.min_x) * xScale;
+                    const y3 = offsetY + (v3[2] - ctBounds.min_z) * zScale;
+                    
+                    path.moveTo(x1, y1);
+                    path.lineTo(x2, y2);
+                    path.lineTo(x3, y3);
+                    path.closePath();
+                    hasElements = true;
+                }
+            }
+            
+            if (hasElements) ctx.stroke(path);
+        }
+        
+        async function fetchCtSliceData(plane, index) {
+            return await window.__TAURI__.core.invoke('get_ct_slice', {plane, index});
+        }
+
+        function requestCtSliceUpdate(axis) {
+            if (currentViewMode !== 'mesh_ct') {
+                return;
+            }
+
+            const planeByAxis = { x: 'coronal', y: 'sagittal', z: 'axial' };
+            const plane = planeByAxis[axis];
+            if (!plane) {
+                return;
+            }
+
+            const slider = document.getElementById(axis + '-slider');
+            if (!slider) {
+                return;
+            }
+
+            const index = parseInt(slider.value, 10);
+            updateCtSlicePlanePosition(plane, index);
+            ctLatestRequestedIndex.set(plane, index);
+
+            if (ctLoadInFlight.get(plane)) {
+                return;
+            }
+
+            void processCtSliceQueue(plane);
+        }
+
+        async function processCtSliceQueue(plane) {
+            if (ctLoadInFlight.get(plane)) {
+                return;
+            }
+
+            const sliderMap = { axial: 'z', sagittal: 'y', coronal: 'x' };
+            const axis = sliderMap[plane];
+            if (!axis) {
+                return;
+            }
+
+            ctLoadInFlight.set(plane, true);
+            try {
+                while (true) {
+                    const latestIndex = ctLatestRequestedIndex.get(plane);
+                    if (latestIndex === undefined || latestIndex === null) {
+                        break;
+                    }
+
+                    const cacheKey = `${plane}-${latestIndex}`;
+                    const cachedData = ctSliceCache.get(cacheKey);
+                    if (cachedData) {
+                        drawCtSlice(plane, cachedData, true);
+                        ctLatestRequestedIndex.delete(plane);
+                        break;
+                    }
+
+                    const loadingElement = document.getElementById(`${plane}-loading`);
+                    let loadingTimeout = null;
+                    if (loadingElement) {
+                        loadingTimeout = setTimeout(() => {
+                            loadingElement.style.display = 'block';
+                        }, 200);
+                    }
+
+                    try {
+                        const requestPromise = fetchCtSliceData(plane, latestIndex);
+                        pendingRequests.set(cacheKey, requestPromise);
+                        const sliceData = await requestPromise;
+
+                        if (!sliceData || !sliceData.data) {
+                            break;
+                        }
+
+                        sliceData.cacheKey = cacheKey;
+                        ctSliceCache.set(cacheKey, sliceData);
+                        if (ctSliceCache.size > 100) {
+                            const firstKey = ctSliceCache.keys().next().value;
+                            ctSliceCache.delete(firstKey);
+                        }
+
+                        const currentRequestedIndex = ctLatestRequestedIndex.get(plane);
+                        if (currentRequestedIndex === latestIndex) {
+                            drawCtSlice(plane, sliceData, true);
+                            ctLatestRequestedIndex.delete(plane);
+                            preloadAdjacentSlices(plane, latestIndex);
+                            break;
+                        }
+                    } catch (error) {
+                        console.error('Failed to fetch CT slice:', error);
+                        break;
+                    } finally {
+                        if (loadingTimeout) {
+                            clearTimeout(loadingTimeout);
+                        }
+                        if (loadingElement) {
+                            loadingElement.style.display = 'none';
+                        }
+                        pendingRequests.delete(cacheKey);
+                    }
+                }
+            } finally {
+                ctLoadInFlight.delete(plane);
+                if (ctLatestRequestedIndex.has(plane)) {
+                    void processCtSliceQueue(plane);
+                }
+            }
+        }
+        
+        function preloadAdjacentSlices(plane, currentIndex, range = 3) {
+            if (!enableCtPreloading || isPreloading || !meshData) return;
+            
+            isPreloading = true;
+            
+            // Get the max slice index for this plane
+            let maxSlices;
+            const totalSlices = meshData.total_slices;
+            switch (plane) {
+                case 'axial': maxSlices = totalSlices[0] - 1; break;
+                case 'sagittal': maxSlices = totalSlices[1] - 1; break;
+                case 'coronal': maxSlices = totalSlices[2] - 1; break;
+                default: return;
+            }
+            
+            // Preload slices within range
+            const preloadPromises = [];
+            for (let i = -range; i <= range; i++) {
+                const sliceIndex = currentIndex + i;
+                if (sliceIndex >= 0 && sliceIndex <= maxSlices && i !== 0) {
+                    const cacheKey = `${plane}-${sliceIndex}`;
+                    
+                    // Only preload if not already cached or pending
+                    if (!ctSliceCache.has(cacheKey) && !pendingRequests.has(cacheKey)) {
+                        const requestPromise = fetchCtSliceData(plane, sliceIndex)
+                            .then(sliceData => {
+                                if (sliceData && sliceData.data) {
+                                    sliceData.cacheKey = cacheKey;
+                                    ctSliceCache.set(cacheKey, sliceData);
+                                }
+                            })
+                            .catch(error => {
+                                console.warn('Preload failed for', cacheKey, ':', error);
+                            });
+                        
+                        pendingRequests.set(cacheKey, requestPromise);
+                        preloadPromises.push(requestPromise);
+                    }
+                }
+            }
+            
+            // Clean up pending requests after preloading
+            Promise.allSettled(preloadPromises).finally(() => {
+                preloadPromises.forEach((_, index) => {
+                    const sliceIndex = currentIndex + (-range + index);
+                    const cacheKey = `${plane}-${sliceIndex}`;
+                    pendingRequests.delete(cacheKey);
+                });
+                isPreloading = false;
+            });
+        }
+        
+        async function initializeVisualization() {
+            const quadrantSetupPromises = currentViewMode === 'mesh_ct'
+                ? [setupQuadrant('3d', '3d')]
+                : [
+                    setupQuadrant('3d', '3d'),
+                    setupQuadrant('z', 'z'),
+                    setupQuadrant('y', 'y'),
+                    setupQuadrant('x', 'x')
+                ];
+
+            await Promise.all(quadrantSetupPromises);
+            
+            updateSlicePositions();
+            
+            // initialize uniforms
+            if (currentViewMode === 'mesh_ct' && meshData?.ct_bounds) {
+                 updateSlice('x');
+            }
+            
+            animate();
+            handleWindowResize();
+            setupRightClickExport();
+            
+            document.getElementById('x-slider').addEventListener('input', (e) => {
+                updateSlice('x', false);
+                const xSliderVal = parseFloat(e.target.value) / 100;
+                const bounds = getVisualizationBounds();
+                clipPlaneX.constant = -(bounds.min_x + (bounds.max_x - bounds.min_x) * xSliderVal);
+                updateAllClippedMeshMaterials();
+                requestCtSliceUpdate('x');
+            });
+            document.getElementById('x-slider').addEventListener('change', () => {
+                requestCtSliceUpdate('x');
+            });
+
+            document.getElementById('y-slider').addEventListener('input', (e) => {
+                updateSlice('y', false);
+                const ySliderVal = parseFloat(e.target.value) / 100;
+                const bounds = getVisualizationBounds();
+                clipPlaneY.constant = -(bounds.min_y + (bounds.max_y - bounds.min_y) * ySliderVal);
+                updateAllClippedMeshMaterials();
+                requestCtSliceUpdate('y');
+            });
+            document.getElementById('y-slider').addEventListener('change', () => {
+                requestCtSliceUpdate('y');
+            });
+
+            document.getElementById('z-slider').addEventListener('input', (e) => {
+                updateSlice('z', false);
+                const zSliderVal = parseFloat(e.target.value) / 100;
+                const bounds = getVisualizationBounds();
+                clipPlaneZ.constant = -(bounds.min_z + (bounds.max_z - bounds.min_z) * zSliderVal);
+                updateAllClippedMeshMaterials();
+                requestCtSliceUpdate('z');
+            });
+            document.getElementById('z-slider').addEventListener('change', () => {
+                requestCtSliceUpdate('z');
+            });
+            
+            // Reset button event listeners
+            document.getElementById('x-reset').addEventListener('click', () => resetView('x'));
+            document.getElementById('y-reset').addEventListener('click', () => resetView('y'));
+            document.getElementById('z-reset').addEventListener('click', () => resetView('z'));
+            document.getElementById('3d-reset').addEventListener('click', () => resetView('3d'));
+
+            window.addEventListener('calibration-roi-updated', () => {
+                if (typeof currentSliceData !== 'undefined') {
+                    drawCtSlice('axial', currentSliceData['axial'], true);
+                    drawCtSlice('sagittal', currentSliceData['sagittal'], true);
+                    drawCtSlice('coronal', currentSliceData['coronal'], true);
+                }
+            });
+        }
+        
+        async function setupQuadrant(quadrantId, viewType) {
+            const container = document.getElementById('quadrant-' + quadrantId);
+            const width = container.clientWidth;
+            const height = container.clientHeight;
+
+            const scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x222222);
+            scenes[quadrantId] = scene;
+
+            const bounds = getVisualizationBounds();
+            const center = new THREE.Vector3(
+                (bounds.min_x + bounds.max_x) / 2,
+                (bounds.min_y + bounds.max_y) / 2,
+                (bounds.min_z + bounds.max_z) / 2
+            );
+            const size = Math.max(
+                bounds.max_x - bounds.min_x,
+                bounds.max_y - bounds.min_y,
+                bounds.max_z - bounds.min_z
+            );
+
+            let camera;
+            if (viewType === '3d') {
+                camera = new THREE.PerspectiveCamera(75, width / height, size * 0.01, size * 10);
+                camera.position.set(
+                    center.x + size * 0.8,
+                    center.y + size * 0.8,
+                    center.z + size * 0.8
+                );
+                camera.lookAt(center);
+            } else {
+                const orthoSize = size * 0.6;
+                camera = new THREE.OrthographicCamera(
+                    -orthoSize, orthoSize, orthoSize, -orthoSize, -size * 2, size * 2
+                );
+
+                // Set consistent camera positions and orientations using the same distance as panControls.initialSize
+                const cameraDistance = size * 0.6; // Match panControls.initialSize calculation
+                if (viewType === 'z') {
+                    camera.position.set(center.x, center.y, center.z + cameraDistance);
+                    camera.lookAt(center.x, center.y, center.z);
+                    camera.up.set(0, 1, 0); // Y is up for Z view
+                } else if (viewType === 'y') {
+                    camera.position.set(center.x, center.y + cameraDistance, center.z);
+                    camera.lookAt(center.x, center.y, center.z);
+                    camera.up.set(0, 0, 1); // Z is up for Y view
+                } else if (viewType === 'x') {
+                    camera.position.set(center.x + cameraDistance, center.y, center.z);
+                    camera.lookAt(center.x, center.y, center.z);
+                    camera.up.set(0, 0, 1); // Z is up for X view
+                }
+            }
+            cameras[quadrantId] = camera;
+
+            const renderer = new WebGPURenderer({
+                antialias: true,
+                alpha: true,
+                preserveDrawingBuffer: true
+            });
+            await renderer.init();
+            renderer.localClippingEnabled = true;
+            renderer.setPixelRatio(window.devicePixelRatio || 1);
+            renderer.setSize(width, height, false);
+            renderer.autoClear = true;
+            renderer.setClearColor(0x222222, 1);
+            renderer.domElement.style.width = '100%';
+            renderer.domElement.style.height = '100%';
+            renderer.domElement.style.display = 'block';
+
+            container.appendChild(renderer.domElement);
+            renderers[quadrantId] = renderer;
+
+            if (viewType === '3d') {
+                const arcballControls = new ArcballControls(camera, renderer.domElement);
+                arcballControls.target.copy(center);
+                arcballControls.rotateSpeed = 2.0;
+                arcballControls.zoomSpeed = 1.2;
+                arcballControls.panSpeed = 0.8;
+                arcballControls.staticMoving = false;
+                arcballControls.dampingFactor = 50;
+                arcballControls.minDistance = size * 0.1;
+                arcballControls.maxDistance = size * 3;
+                arcballControls.enableAnimation = true; // Enable smooth animation
+                arcballControls.update();
+                arcballControls.saveState(); // Save the initial state for reset functionality
+                controls[quadrantId] = arcballControls;
+
+                if (quadrantId === '3d') {
+                    calibrationManager = new CalibrationManager(scene, camera, renderer, arcballControls);
+
+                    window.calibrationManager = calibrationManager;
+                }
+
+                // view helper
+                const viewHelper = new ViewHelper(camera, renderer.domElement);
+                
+                viewHelper.controls = arcballControls;
+                viewHelper.controls.center = arcballControls.target;
+                viewHelper.location.left = 0;
+                viewHelper.location.bottom = 0;
+                viewHelper.location.right = null;
+                viewHelper.location.top = null;
+                viewHelper.setLabels('X', 'Y', 'Z');
+
+                viewHelper.center.copy(center);
+
+                viewHelpers[quadrantId] = viewHelper;
+
+            } else {
+                const panControls = {
+                    isDragging: false,
+                    previousMouse: {x: 0, y: 0},
+                    panOffset: {x: 0, y: 0},
+                    zoomLevel: 1.0,
+                    initialSize: size * 0.6
+                };
+
+                renderer.domElement.addEventListener('mousedown', (event) => {
+                    panControls.isDragging = true;
+                    panControls.previousMouse.x = event.clientX;
+                    panControls.previousMouse.y = event.clientY;
+                    renderer.domElement.style.cursor = 'grabbing';
+                });
+
+                renderer.domElement.addEventListener('mousemove', (event) => {
+                    if (panControls.isDragging) {
+                        const deltaX = event.clientX - panControls.previousMouse.x;
+                        const deltaY = event.clientY - panControls.previousMouse.y;
+
+                        // Improved pan sensitivity based on zoom level
+                        const panSpeed = (panControls.initialSize * 0.002) / panControls.zoomLevel;
+
+                        // Map mouse movement to consistent camera movement for each view
+                        if (viewType === 'z') {
+                            // Z view top-down mapping
+                            panControls.panOffset.x -= deltaX * panSpeed; // Invert X for correct panning behavior
+                            panControls.panOffset.y += deltaY * panSpeed; // Same direction as mouse for intuitive behavior
+                        } else if (viewType === 'y') {
+                            panControls.panOffset.x += deltaX * panSpeed;
+                            panControls.panOffset.y += deltaY * panSpeed; // Y mouse controls Z in this view
+                        } else if (viewType === 'x') {
+                            panControls.panOffset.x -= deltaX * panSpeed; // Invert X for intuitive movement
+                            panControls.panOffset.y += deltaY * panSpeed; // Y mouse controls Z in this view
+                        }
+
+                        updateCameraPosition(camera, center, panControls, viewType);
+
+                        panControls.previousMouse.x = event.clientX;
+                        panControls.previousMouse.y = event.clientY;
+                    }
+                });
+
+                renderer.domElement.addEventListener('mouseup', () => {
+                    panControls.isDragging = false;
+                    renderer.domElement.style.cursor = 'grab';
+                });
+
+                renderer.domElement.addEventListener('mouseleave', () => {
+                    panControls.isDragging = false;
+                    renderer.domElement.style.cursor = 'grab';
+                });
+
+                renderer.domElement.addEventListener('wheel', (event) => {
+                    event.preventDefault();
+
+                    // More consistent zoom behavior
+                    const zoomSpeed = 0.1;
+                    const zoomFactor = event.deltaY > 0 ? (1 + zoomSpeed) : (1 - zoomSpeed);
+
+                    panControls.zoomLevel *= zoomFactor;
+                    // Limit zoom levels to prevent extreme values
+                    panControls.zoomLevel = Math.max(0.1, Math.min(10, panControls.zoomLevel));
+
+                    updateCameraPosition(camera, center, panControls, viewType);
+                });
+
+                // Set initial cursor
+                renderer.domElement.style.cursor = 'grab';
+                controls[quadrantId] = panControls;
+
+                // Initialize camera position to match panControls state
+                updateCameraPosition(camera, center, panControls, viewType);
+            }
+
+            addMeshToScene(scene, viewType);
+
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
+            scene.add(ambientLight);
+
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.4);
+            directionalLight.position.copy(camera.position);
+            scene.add(directionalLight);
+
+            // Axes lines for use with debugging or orientation reference
+            // const axesHelper = new THREE.AxesHelper(size); // size = length of each axis line
+            // axesHelper.position.copy(center); // your existing center Vector3
+            // scene.add(axesHelper);
+        }
+        
+        function updateCameraPosition(camera, center, panControls, viewType) {
+            // Calculate zoom-adjusted orthographic size
+            const baseSize = panControls.initialSize;
+            const orthoSize = baseSize / panControls.zoomLevel;
+            const container = document.getElementById('quadrant-' + viewType);
+            const aspect = container && container.clientHeight > 0
+                ? container.clientWidth / container.clientHeight
+                : 1;
+            
+            // Update camera projection
+            if (aspect >= 1) {
+                camera.left = -orthoSize * aspect;
+                camera.right = orthoSize * aspect;
+                camera.top = orthoSize;
+                camera.bottom = -orthoSize;
+            } else {
+                camera.left = -orthoSize;
+                camera.right = orthoSize;
+                camera.top = orthoSize / Math.max(aspect, 0.0001);
+                camera.bottom = -orthoSize / Math.max(aspect, 0.0001);
+            }
+            camera.updateProjectionMatrix();
+            
+            // Calculate camera positions and look-at targets with consistent orientation
+            if (viewType === 'z') {
+                // Z view: looking down the Z axis (Y up, X right)
+                camera.position.set(
+                    center.x + panControls.panOffset.x,
+                    center.y + panControls.panOffset.y,
+                    center.z + baseSize
+                );
+                camera.lookAt(
+                    center.x + panControls.panOffset.x,
+                    center.y + panControls.panOffset.y,
+                    center.z
+                );
+                // Ensure up vector is always consistent
+                camera.up.set(0, 1, 0);
+            } else if (viewType === 'y') {
+                // Y view: looking along the Y axis (Z up, X right)  
+                camera.position.set(
+                    center.x + panControls.panOffset.x,
+                    center.y + baseSize,
+                    center.z + panControls.panOffset.y
+                );
+                camera.lookAt(
+                    center.x + panControls.panOffset.x,
+                    center.y,
+                    center.z + panControls.panOffset.y
+                );
+                // Ensure up vector is always consistent
+                camera.up.set(0, 0, 1);
+            } else if (viewType === 'x') {
+                // X view: looking along the X axis (Z up, Y right)
+                camera.position.set(
+                    center.x + baseSize,
+                    center.y + panControls.panOffset.x,
+                    center.z + panControls.panOffset.y
+                );
+                camera.lookAt(
+                    center.x,
+                    center.y + panControls.panOffset.x,
+                    center.z + panControls.panOffset.y
+                );
+                // Ensure up vector is always consistent
+                camera.up.set(0, 0, 1);
+            }
+            
+            // Force camera matrix update to prevent orientation drift
+            camera.updateMatrixWorld(true);
+        }
+
+        // Helper to sync clip plane constants across all viewports
+        function updateAllClippedMeshMaterials() {
+            ['cut_x', 'cut_y', 'cut_z'].forEach(meshKey => {
+                const mesh = meshObjects[meshKey];
+                if (mesh && mesh.material) {
+                    mesh.material.needsUpdate = true;
+                }
+            });
+        }
+
+        function addMeshToScene(scene, viewType) {
+            if (viewType === '3d') {
+                // Create shared geometry ONCE (used by all materials)
+                if (!sharedGeometry) {
+                    sharedGeometry = new THREE.BufferGeometry();
+                    const vertices = new Float32Array(meshData.vertices);
+                    sharedGeometry.setAttribute('position', new THREE.BufferAttribute(vertices, 3));
+                    const indices = new Uint32Array(meshData.faces);
+                    sharedGeometry.setIndex(new THREE.BufferAttribute(indices, 1));
+                    // Cache base vertex positions for transforms and slice projections
+                    baseMeshVertices = vertices;
+                    transformedMeshVertices = null;
+
+                    applyVertexColorsToGeometry(sharedGeometry);
+
+                    // Set pivot center for rotations/transforms.
+                    if (!meshPivotCenter) {
+                        if (currentViewMode === 'mesh_ct' && meshData?.ct_bounds && meshBasePosition) {
+                            meshPivotCenter = new THREE.Vector3(
+                                (meshData.ct_bounds.min_x + meshData.ct_bounds.max_x) / 2 - meshBasePosition.x,
+                                (meshData.ct_bounds.min_y + meshData.ct_bounds.max_y) / 2 - meshBasePosition.y,
+                                (meshData.ct_bounds.min_z + meshData.ct_bounds.max_z) / 2 - meshBasePosition.z
+                            );
+                        } else if (meshBasePosition) {
+                            meshPivotCenter = new THREE.Vector3(0, 0, 0);
+                        } else if (meshData && meshData.bounds) {
+                            meshPivotCenter = new THREE.Vector3(
+                                (meshData.bounds.min_x + meshData.bounds.max_x) / 2,
+                                (meshData.bounds.min_y + meshData.bounds.max_y) / 2,
+                                (meshData.bounds.min_z + meshData.bounds.max_z) / 2
+                            );
+                        } else {
+                            meshPivotCenter = new THREE.Vector3(0, 0, 0);
+                        }
+                    }
+                }
+
+                // Create full unclipped material
+                if (!fullMaterial) {
+                    fullMaterial = new THREE.MeshStandardMaterial({
+                        vertexColors: true,
+                        wireframe: false,
+                        side: THREE.DoubleSide,
+                        clipShadows: true,
+                    });
+                }
+
+                // Create clipped materials
+                if (!meshObjects['cut_x']) {
+                    meshObjects['cut_x'] = new THREE.Mesh(sharedGeometry, new THREE.MeshStandardMaterial({
+                        vertexColors: true,
+                        wireframe: false,
+                        side: THREE.DoubleSide,
+                        clippingPlanes: [clipPlaneX],
+                        clipShadows: true,
+                    }));
+
+                    meshObjects['cut_y'] = new THREE.Mesh(sharedGeometry, new THREE.MeshStandardMaterial({
+                        vertexColors: true,
+                        wireframe: false,
+                        side: THREE.DoubleSide,
+                        clippingPlanes: [clipPlaneY],
+                        clipShadows: true,
+                    }));
+
+                    meshObjects['cut_z'] = new THREE.Mesh(sharedGeometry, new THREE.MeshStandardMaterial({
+                        vertexColors: true,
+                        side: THREE.DoubleSide,
+                        clippingPlanes: [clipPlaneZ],
+                        clipShadows: true,
+                    }));
+                }
+
+                // Use the full (unclipped) mesh for the 3D view
+                const mesh = new THREE.Mesh(sharedGeometry, fullMaterial);
+                mesh.visible = true;
+                meshObjects['3d'] = mesh;
+                meshGroup = mesh;
+                scene.add(mesh);
+
+                console.log('[Performance] Shared geometry created ONCE. All clipped views use same geometry.');
+            } else {
+                generateSliceGeometry(scene, viewType);
+            }
+        }
+        
+        function generateSliceGeometry(scene, viewType) {
+            const bounds = meshData.bounds;
+            
+            // Use cached t-value to determine cache key
+            let tValue;
+            if (viewType === 'x') {
+                tValue = slicePositions.x;
+            } else if (viewType === 'y') {
+                tValue = slicePositions.y;
+            } else if (viewType === 'z') {
+                tValue = slicePositions.z;
+            }
+            
+            const cacheKey = `${viewType}_${tValue.toFixed(4)}`;
+            
+            // Check cache first and reuse geometry if t-value hasn't changed significantly
+            let cachedGeometry = sliceGeometryCache.get(cacheKey);
+            
+            if (!cachedGeometry) {
+                // Generate slice positions for bounds check
+                let slicePosition;
+                if (viewType === 'x') {
+                    slicePosition = bounds.min_x + (bounds.max_x - bounds.min_x) * slicePositions.x;
+                } else if (viewType === 'y') {
+                    slicePosition = bounds.min_y + (bounds.max_y - bounds.min_y) * slicePositions.y;
+                } else if (viewType === 'z') {
+                    slicePosition = bounds.min_z + (bounds.max_z - bounds.min_z) * slicePositions.z;
+                }
+                
+                // Compute slice geometry ONLY when t-value changes beyond tolerance
+                const sliceVertices = [];
+                const sliceColors = [];
+                const sliceIndices = [];
+                let vertexIndex = 0;
+                
+                // Calculate tolerance based on mesh size
+                const size = Math.max(bounds.max_x - bounds.min_x, bounds.max_y - bounds.min_y, bounds.max_z - bounds.min_z);
+                const tolerance = size * 0.01;
+                
+                let elementCount = 0;
+                
+                // Show actual mesh elements that are intersected by or near the slice plane
+                for (let i = 0; i < meshData.faces.length; i += 3) {
+                    const f0 = meshData.faces[i];
+                    const f1 = meshData.faces[i+1];
+                    const f2 = meshData.faces[i+2];
+
+                    const v1 = [meshData.vertices[f0*3], meshData.vertices[f0*3+1], meshData.vertices[f0*3+2]];
+                    const v2 = [meshData.vertices[f1*3], meshData.vertices[f1*3+1], meshData.vertices[f1*3+2]];
+                    const v3 = [meshData.vertices[f2*3], meshData.vertices[f2*3+1], meshData.vertices[f2*3+2]];
+
+                    const c1 = currentVertexColors[f0] || [0.5, 0.5, 0.5];
+                    const c2 = currentVertexColors[f1] || [0.5, 0.5, 0.5];
+                    const c3 = currentVertexColors[f2] || [0.5, 0.5, 0.5];
+
+                    // Get coordinates along the slice axis
+                    let coord1, coord2, coord3;
+                    if (viewType === 'x') {
+                        coord1 = v1[0]; coord2 = v2[0]; coord3 = v3[0];
+                    } else if (viewType === 'y') {
+                        coord1 = v1[1]; coord2 = v2[1]; coord3 = v3[1];
+                    } else if (viewType === 'z') {
+                        coord1 = v1[2]; coord2 = v2[2]; coord3 = v3[2];
+                    }
+                    
+                    // Check if any part of the triangle is within tolerance of the slice plane
+                    const minCoord = Math.min(coord1, coord2, coord3);
+                    const maxCoord = Math.max(coord1, coord2, coord3);
+                    const centerCoord = (coord1 + coord2 + coord3) / 3;
+                    
+                    // Show elements that are close to the slice plane
+                    if (Math.abs(centerCoord - slicePosition) <= tolerance || 
+                        (minCoord <= slicePosition + tolerance && maxCoord >= slicePosition - tolerance)) {
+                        
+                        sliceVertices.push(...v1, ...v2, ...v3);
+                        sliceColors.push(c1[0], c1[1], c1[2], c2[0], c2[1], c2[2], c3[0], c3[1], c3[2]);
+                        sliceIndices.push(vertexIndex, vertexIndex + 1, vertexIndex + 2);
+                        vertexIndex += 3;
+                        elementCount++;
+                    }
+                }
+                
+                if (sliceVertices.length > 0) {
+                    cachedGeometry = new THREE.BufferGeometry();
+                    cachedGeometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array(sliceVertices), 3));
+                    cachedGeometry.setAttribute('color', new THREE.BufferAttribute(new Float32Array(sliceColors), 3));
+                    
+                    if (sliceIndices.length > 0) {
+                        cachedGeometry.setIndex(new THREE.BufferAttribute(new Uint32Array(sliceIndices), 1));
+                    }
+                    
+                    // Store in cache for future reuse
+                    sliceGeometryCache.set(cacheKey, cachedGeometry);
+                    console.log(`[Performance] Generated & cached slice geometry for ${viewType} at t=${tValue.toFixed(4)} (${elementCount} faces)`);
+                } else {
+                    console.warn(`No intersections found for ${viewType} slice at position ${slicePosition}`);
+                }
+            } else {
+                console.log(`[Performance] Reused cached slice geometry for ${viewType} at t=${tValue.toFixed(4)}`);
+            }
+            
+            // Update or create the mesh with cached geometry
+            if (cachedGeometry) {
+                const material = new THREE.MeshBasicMaterial({
+                    vertexColors: true,
+                    side: THREE.DoubleSide,
+                    transparent: false,
+                    opacity: 1.0
+                });
+                
+                const newMesh = new THREE.Mesh(cachedGeometry, material);
+                
+                // Remove old slice mesh for this axis
+                if (sliceMeshes[viewType]) {
+                    scene.remove(sliceMeshes[viewType]);
+                    sliceMeshes[viewType].geometry.dispose();
+                    sliceMeshes[viewType].material.dispose();
+                }
+                
+                scene.add(newMesh);
+                sliceMeshes[viewType] = newMesh;
+            }
+        }
+        
+        window.updateSlice = updateSlice;
+        function updateSlice(axis, includeOverlay = true) {
+            const slider = document.getElementById(axis + '-slider');
+            const valueSpan = document.getElementById(axis + '-value');
+            const bounds = currentViewMode === 'mesh_ct' && meshData.ct_bounds ? meshData.ct_bounds : meshData.bounds;
+            
+            const sliderValue = parseInt(slider.value, 10);
+            const maxValue = parseInt(slider.max || '100', 10);
+            const t = currentViewMode === 'mesh_ct'
+                ? (maxValue > 0 ? sliderValue / maxValue : 0)
+                : sliderValue / 100.0;
+            let position;
+            
+            if (axis === 'x') {
+                position = bounds.min_x + t * (bounds.max_x - bounds.min_x);
+                slicePositions.x = t;
+            } else if (axis === 'y') {
+                position = bounds.min_y + t * (bounds.max_y - bounds.min_y);
+                slicePositions.y = t;
+            } else if (axis === 'z') {
+                position = bounds.min_z + t * (bounds.max_z - bounds.min_z);
+                slicePositions.z = t;
+            }
+            
+            valueSpan.textContent = position.toFixed(2);
+
+            // Update shader uniforms
+            if (meshObjects['3d'] && meshObjects['3d'].material.userData.shader) {
+                const uniforms = meshObjects['3d'].material.userData.shader.uniforms;
+                
+                // Keep default value as -9999.0 when in standard mesh mode
+                let plane_x = -9999.0, plane_y = -9999.0, plane_z = -9999.0;
+                
+                if (currentViewMode === 'mesh_ct') {
+                    // Update uniforms based on slice positions
+                    if (meshData.ct_bounds) {
+                        const ctBounds = meshData.ct_bounds;
+                        // Use x-slider, y-slider, z-slider
+                        const xSliderValue = parseFloat(document.getElementById('x-slider').value);
+                        const ySliderValue = parseFloat(document.getElementById('y-slider').value);
+                        const zSliderValue = parseFloat(document.getElementById('z-slider').value);
+                        const maxSlices = meshData.total_slices;
+
+                        plane_x = ctBounds.min_x + (xSliderValue / Math.max(1, maxSlices[2] - 1)) * (ctBounds.max_x - ctBounds.min_x);
+                        plane_y = ctBounds.min_y + (ySliderValue / Math.max(1, maxSlices[1] - 1)) * (ctBounds.max_y - ctBounds.min_y);
+                        plane_z = ctBounds.min_z + (zSliderValue / Math.max(1, maxSlices[0] - 1)) * (ctBounds.max_z - ctBounds.min_z);
+                    }
+                }
+                
+                uniforms.u_plane_x.value = plane_x;
+                uniforms.u_plane_y.value = plane_y;
+                uniforms.u_plane_z.value = plane_z;
+            }
+
+            if (currentViewMode === 'mesh_ct') {
+                const planeByAxis = { x: 'coronal', y: 'sagittal', z: 'axial' };
+                const plane = planeByAxis[axis];
+                if (plane && includeOverlay) {
+                    requestCtSliceUpdate(axis);
+                }
+                return;
+            }
+            
+            const scene = scenes[axis];
+            if (scene) {
+                const objectsToRemove = [];
+                scene.traverse((child) => {
+                    if (child instanceof THREE.Mesh && child.material.vertexColors) {
+                        objectsToRemove.push(child);
+                    }
+                });
+                objectsToRemove.forEach(obj => scene.remove(obj));
+                
+                generateSliceGeometry(scene, axis);
+            }
+        }
+        
+        window.resetView = resetView;
+        function resetView(axis) {
+            const panControls = controls[axis];
+            const camera = cameras[axis];
+            
+            if (panControls && camera && axis !== '3d') {
+                // Reset all pan and zoom values
+                panControls.panOffset.x = 0;
+                panControls.panOffset.y = 0;
+                panControls.zoomLevel = 1.0;
+                
+                // Reset camera position and orientation
+                const bounds = meshData.bounds;
+                const center = new THREE.Vector3(
+                    (bounds.min_x + bounds.max_x) / 2,
+                    (bounds.min_y + bounds.max_y) / 2,
+                    (bounds.min_z + bounds.max_z) / 2
+                );
+                
+                // Recalculate the camera position properly
+                updateCameraPosition(camera, center, panControls, axis);
+                
+                console.log(`Reset view for ${axis} axis`);
+            } else if (axis === '3d' && controls['3d']) {
+                // Reset 3D arcball controls
+                const arcballControls = controls['3d'];
+                const bounds = meshData.bounds;
+                const center = new THREE.Vector3(
+                    (bounds.min_x + bounds.max_x) / 2,
+                    (bounds.min_y + bounds.max_y) / 2,
+                    (bounds.min_z + bounds.max_z) / 2
+                );
+                const size = Math.max(bounds.max_x - bounds.min_x, bounds.max_y - bounds.min_y, bounds.max_z - bounds.min_z);
+                
+                arcballControls.target.copy(center);
+                cameras['3d'].position.set(center.x + size, center.y + size, center.z + size);
+                arcballControls.update();
+
+                arcballControls.reset();
+
+                console.log(`Reset 3D view`);
+            }
+
+            if (currentViewMode === 'mesh_ct') {
+                const slider = document.getElementById(axis + '-slider');
+                if (slider) {
+                    const maxIndex = parseInt(slider.max || '0', 10);
+                    slider.value = String(Math.floor(maxIndex / 2));
+                    updateSlice(axis);
+                }
+                return;
+            }
+        }
+        
+        function updateSlicePositions() {
+            const bounds = currentViewMode === 'mesh_ct' && meshData.ct_bounds ? meshData.ct_bounds : meshData.bounds;
+
+            if (currentViewMode === 'mesh_ct' && meshData?.total_slices) {
+                const sliceCounts = meshData.total_slices;
+                const xSlider = document.getElementById('x-slider');
+                const ySlider = document.getElementById('y-slider');
+                const zSlider = document.getElementById('z-slider');
+
+                if (xSlider) {
+                    const xIndex = parseInt(xSlider.value, 10) || 0;
+                    const xPos = bounds.min_x + (xIndex / Math.max(1, sliceCounts[2] - 1)) * (bounds.max_x - bounds.min_x);
+                    document.getElementById('x-value').textContent = xPos.toFixed(2);
+                }
+                if (ySlider) {
+                    const yIndex = parseInt(ySlider.value, 10) || 0;
+                    const yPos = bounds.min_y + (yIndex / Math.max(1, sliceCounts[1] - 1)) * (bounds.max_y - bounds.min_y);
+                    document.getElementById('y-value').textContent = yPos.toFixed(2);
+                }
+                if (zSlider) {
+                    const zIndex = parseInt(zSlider.value, 10) || 0;
+                    const zPos = bounds.min_z + (zIndex / Math.max(1, sliceCounts[0] - 1)) * (bounds.max_z - bounds.min_z);
+                    document.getElementById('z-value').textContent = zPos.toFixed(2);
+                }
+                return;
+            }
+
+            const xPos = bounds.min_x + slicePositions.x * (bounds.max_x - bounds.min_x);
+            document.getElementById('x-value').textContent = xPos.toFixed(2);
+
+            const yPos = bounds.min_y + slicePositions.y * (bounds.max_y - bounds.min_y);
+            document.getElementById('y-value').textContent = yPos.toFixed(2);
+
+            const zPos = bounds.min_z + slicePositions.z * (bounds.max_z - bounds.min_z);
+            document.getElementById('z-value').textContent = zPos.toFixed(2);
+        }
+
+        function setupDraggablePanel({
+            element,
+            dragState,
+            ignoreSelectors = [],
+            onStart,
+            onMove,
+            onEnd,
+            onDoubleClick,
+        }) {
+            if (!element) {
+                return;
+            }
+
+            element.addEventListener('pointerdown', (event) => {
+                if (
+                    event.button !== 0 || 
+                    ignoreSelectors.some(sel => event.target.closest(sel))
+                ) {
+                    return;
+                }
+
+                dragState.active = true;
+                dragState.pointerId = event.pointerId;
+                element.setPointerCapture(event.pointerId);
+                element.classList.add('dragging');
+
+                const rect = element.getBoundingClientRect();
+                dragState.offsetX = event.clientX - rect.left;
+                dragState.offsetY = event.clientY - rect.top;
+
+                onStart?.(rect, event);
+            });
+
+            element.addEventListener('pointermove', (event) => {
+                if (
+                    !dragState.active || 
+                    event.pointerId !== dragState.pointerId
+                ) {
+                    return;
+                }
+
+                const newLeft = event.clientX - dragState.offsetX;
+                const newTop = event.clientY - dragState.offsetY;
+
+                onMove?.({
+                    newLeft, 
+                    newTop, 
+                    event
+                });
+                
+            });
+
+            const stopDragging = (event) => {
+                if (
+                    !dragState.active || 
+                    event.pointerId !== dragState.pointerId
+                ) {
+                    return;
+                }
+
+                dragState.active = false;
+                element.releasePointerCapture(event.pointerId);
+                element.classList.remove('dragging');
+                
+                onEnd?.(event);
+
+            };
+
+            element.addEventListener('pointerup', stopDragging);
+            element.addEventListener('pointercancel', stopDragging);
+            element.addEventListener('lostpointercapture', () => {
+                dragState.active = false;
+                element.classList.remove('dragging');
+            });
+
+            if (onDoubleClick) {
+                element.addEventListener('dblclick', (event) => {
+                    if (ignoreSelectors.some(sel => event.target.closest(sel))) {
+                        return;
+                    }
+                    onDoubleClick(event);
+                });
+            }
+        }
+        
+        function createDraggableApi(element, { margin = 10, dock = {} }) {
+            function clamp(left, top) {
+                const maxLeft = window.innerWidth - element.offsetWidth - margin;
+                const maxTop = window.innerHeight - element.offsetHeight - margin;
+                return {
+                    left: Math.max(margin, Math.min(maxLeft, left)),
+                    top: Math.max(margin, Math.min(maxTop, top))
+                };
+            }
+
+            function position(left, top) {
+                const clamped = clamp(left, top);
+                element.style.left = `${clamped.left}px`;
+                element.style.top = `${clamped.top}px`;
+            }
+
+            function reset() {
+                element.style.left = dock.left ?? 'auto';
+                element.style.top = dock.top ?? 'auto';
+                element.style.right = dock.right ?? 'auto';
+                element.style.bottom = dock.bottom ?? 'auto';
+                element.style.transform = dock.transform ?? 'none';
+            }
+
+            function enforceBounds() {
+                if (element.style.left !== '' && element.style.left !== 'auto') {
+                    const left = parseFloat(element.style.left || '0');
+                    const top = parseFloat(element.style.top || '0');
+                    position(left, top);
+                }
+            }
+
+            return {
+                position,
+                reset,
+                enforceBounds,
+                clamp
+            };
+        }
+
+        function handleWindowResize() {
+            if (!meshData) {
+                return;
+            }
+            const bounds = meshData.bounds;
+            const center = new THREE.Vector3(
+                (bounds.min_x + bounds.max_x) / 2,
+                (bounds.min_y + bounds.max_y) / 2,
+                (bounds.min_z + bounds.max_z) / 2
+            );
+            
+            Object.keys(renderers).forEach((quadrantId) => {
+                const container = document.getElementById('quadrant-' + quadrantId);
+                const renderer = renderers[quadrantId];
+                const camera = cameras[quadrantId];
+                if (!container || !renderer || !camera) {
+                    return;
+                }
+                const width = container.clientWidth;
+                const height = container.clientHeight;
+                renderer.setPixelRatio(window.devicePixelRatio || 1);
+                renderer.setSize(width, height, false);
+                if (camera.isPerspectiveCamera) {
+                    camera.aspect = width / Math.max(height, 1);
+                    camera.updateProjectionMatrix();
+                } else {
+                    const panControls = controls[quadrantId];
+                    if (panControls) {
+                        updateCameraPosition(camera, center, panControls, quadrantId);
+                    }
+                }
+            });
+
+            if (currentViewMode === 'mesh_ct') {
+                resizeCtCanvases();
+                ['axial', 'sagittal', 'coronal'].forEach((plane) => {
+                    const sliceData = currentSliceData[plane];
+                    if (sliceData) {
+                        drawCtSlice(plane, sliceData, true);
+                    }
+                });
+            }
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            
+            if (controls['3d']) {
+                controls['3d'].update();
+            }
+
+            updatePlaneLabelPositions();
+            
+            Object.keys(renderers).forEach(key => {
+                renderers[key].autoClear = false;
+                // render 3d first
+                renderers[key].render(scenes[key], cameras[key]);
+                
+                // render helper on top of 3d
+                if (key === '3d' && viewHelpers['3d']) {
+                    viewHelpers['3d'].render(renderers[key]);
+                }
+            });
+        }
+
+        // Right-click vector export functionality
+        function setupRightClickExport() {
+            const contextMenu = document.getElementById('custom-context-menu');
+            const exportSvgBtn = document.getElementById('menu-export-svg');
+            const exportPngBtn = document.getElementById('menu-export-png');
+            const exportSvgCbBtn = document.getElementById('menu-export-clr-bar-svg');
+            const exportPngCbBtn = document.getElementById('menu-export-clr-bar-png');
+            const histcontextMenu = document.getElementById('custom-histo-context-menu');
+            const exportHistBtn = document.getElementById('histo-export-png');
+
+            if (typeof SVGRenderer === 'undefined') {
+                console.warn('SVGRenderer not loaded - vector export disabled')
+                return;
+            }
+
+            Object.keys(renderers).forEach(quadrantId => {
+                const container = document.getElementById('quadrant-' + quadrantId);
+                if (!container) return;
+
+                container.addEventListener('contextmenu', (event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+
+                    activeQuadrantId = quadrantId;
+
+                    contextMenu.style.display = 'block';
+                    contextMenu.style.left = `${event.pageX}px`;
+                    contextMenu.style.top = `${event.pageY}px`;
+                });
+            });
+
+            histogramCanvas.addEventListener('contextmenu', (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+
+                histcontextMenu.style.display = 'block';
+                histcontextMenu.style.left = `${event.pageX}px`;
+                histcontextMenu.style.top = `${event.pageY}px`;
+            });
+
+            document.addEventListener('click', (event) => {
+               if (event.target.offsetParent !== histcontextMenu) {
+                    histcontextMenu.style.display = 'none';
+               }
+            });
+
+            exportHistBtn.addEventListener('click', (event) => {
+                exportHistogramAsPNG();
+                histcontextMenu.style.display = 'none';
+            });
+
+            document.addEventListener('click', (event) => {
+                if (event.target.offsetParent !== contextMenu) {
+                    contextMenu.style.display = 'none';
+                    activeQuadrantId = null;
+                }
+            });
+
+            exportSvgBtn.addEventListener('click', (event) => {
+                if (activeQuadrantId !== null) {
+                    exportQuadrantAsSVG(activeQuadrantId);
+                }
+                contextMenu.style.display = 'none';
+                activeQuadrantId = null;
+            });
+
+            exportPngBtn.addEventListener('click', () => {
+                if (activeQuadrantId !== null) {
+                    exportQuadrantAsPNG(activeQuadrantId);
+                }
+                // Hide menu after clicking
+                contextMenu.style.display = 'none';
+                activeQuadrantId = null;
+            });
+
+            exportSvgCbBtn.addEventListener('click', () => {
+                exportColorbar('svg');
+                contextMenu.style.display = 'none';
+            });
+
+            exportPngCbBtn.addEventListener('click', () => {
+                exportColorbar('png');
+                contextMenu.style.display = 'none';
+            })
+        }
+
+        function exportHistogramAsPNG() {
+            const scale = 10;
+            const tempCanvas = document.createElement('canvas');
+            tempCanvas.width = histogramCanvas.width * scale;
+            tempCanvas.height = histogramCanvas.height * scale;
+
+            renderHistogram(meshData.histogram, tempCanvas, scale);
+
+            const link = document.createElement('a');
+            link.download = `histogram_${Date.now()}.png`;
+            link.href = tempCanvas.toDataURL('image/png');
+            link.click();
+        }
+
+        function exportQuadrantAsSVG(quadrantId) {
+            const originalScene = scenes[quadrantId];
+            const camera = cameras[quadrantId];
+            const container = document.getElementById('quadrant-' + quadrantId);
+
+            if (!originalScene || !camera || !container) return;
+
+            const width = container.clientWidth;
+            const height = container.clientHeight;
+
+            // Create a blank, temporary scene dedicated to the SVG render
+            const exportScene = new THREE.Scene();
+            
+            // Prepare frustum for culling
+            const projScreenMatrix = new THREE.Matrix4();
+            const frustum = new THREE.Frustum();
+            camera.updateMatrixWorld();
+            projScreenMatrix.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
+            frustum.setFromProjectionMatrix(projScreenMatrix);
+
+            // Group geometries by their material structure
+            // We cannot merge meshes that use different materials into a single geometry easily so this probably doesn't help
+            const materialGroups = new Map();
+
+            // I don't think this really does anything
+            originalScene.traverse((object) => {
+                if (!object.isMesh || !object.visible) return;
+
+                // Skip objects the camera can't even see
+                if (!frustum.intersectsObject(object)) return;
+
+                const material = object.material;
+                // Ignore fully transparent materials
+                if (material.opacity === 0 || material.visible === false) return;
+
+                // Handle multi-materials or single materials uniformly
+                const matKey = Array.isArray(material) ? material[0].uuid : material.uuid;
+                
+                if (!materialGroups.has(matKey)) {
+                    materialGroups.set(matKey, {
+                        materialInstance: Array.isArray(material) ? material[0] : material,
+                        geometries: []
+                    });
+                }
+
+                // Clone the geometry and bake the world position into its vertices.
+                object.updateMatrixWorld();
+                const clonedGeom = object.geometry.clone();
+                clonedGeom.applyMatrix4(object.matrixWorld); 
+
+                materialGroups.get(matKey).geometries.push(clonedGeom);
+            });
+
+            // Merge the geometries and add to temporary export scene
+            materialGroups.forEach((group) => {
+                if (group.geometries.length === 0) return;
+
+                try {
+                    // This maybe turns thousands of geometries into a single geometry block
+                    const mergedGeometry = BufferGeometryUtils.mergeGeometries(group.geometries, false);
+                    
+                    if (mergedGeometry) {
+                        const mergedMesh = new THREE.Mesh(mergedGeometry, group.materialInstance);
+                        exportScene.add(mergedMesh);
+                    }
+                } catch (err) {
+                    console.error("Failed to merge a group of geometries:", err);
+                }
+            });
+
+            // Feed exportScene to the SVGRenderer
+            try {
+                const svgRenderer = new SVGRenderer();
+                svgRenderer.setSize(width, height);
+                svgRenderer.setPrecision(3); // Trim decimal bloat to save string memory
+
+                svgRenderer.render(exportScene, camera);
+
+                // Chunked serialization to avoid V8 contiguous string allocation limits
+                const svgElement = svgRenderer.domElement;
+                const serializer = new XMLSerializer();
+                const blobParts = ['<svg xmlns="http://www.w3.org/2000/svg"'];
+                
+                // Copy top level SVG attributes
+                for (let i = 0; i < svgElement.attributes.length; i++) {
+                    const attr = svgElement.attributes[i];
+                    if (attr.name !== 'xmlns') blobParts.push(` ${attr.name}="${attr.value}"`);
+                }
+                blobParts.push('>');
+
+                // Serialize child elements line-by-line
+                const children = svgElement.childNodes;
+                for (let i = 0; i < children.length; i++) {
+                    blobParts.push(serializer.serializeToString(children[i]));
+                }
+                blobParts.push('</svg>');
+
+                // Trigger Download
+                const blob = new Blob(blobParts, { type: 'image/svg+xml;charset=utf-8' });
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = `view_${quadrantId}_${Date.now()}.svg`;
+                link.click();
+                URL.revokeObjectURL(url);
+
+            } catch (error) {
+                console.error('SVG Export crashed:', error);
+            } finally {
+                // Explicitly dispose of temporary cloned geometries
+                materialGroups.forEach((group) => {
+                    group.geometries.forEach(g => g.dispose());
+                });
+                
+                exportScene.traverse((obj) => {
+                    if (obj.geometry) obj.geometry.dispose();
+                });
+            }
+        }
+
+        function exportQuadrantAsPNG(quadrantId) {
+            const scene = scenes[quadrantId];
+            const camera = cameras[quadrantId];
+            const renderer = renderers[quadrantId];
+            const container = document.getElementById('quadrant-' + quadrantId);
+
+            if (!scene || !camera || !renderer || !container) {
+                console.warn(`Missing components for PNG export on ${quadrantId}`);
+                return;
+            }
+
+            // Save original state
+            const originalBackground = scene.background;
+            const originalSize = new THREE.Vector2();
+            renderer.getSize(originalSize);
+            const originalPixelRatio = renderer.getPixelRatio();
+
+            // Scale multiplier
+            const exportScale = 2;
+            const exportWidth = originalSize.x * exportScale;
+            const exportHeight = originalSize.y * exportScale;
+
+            try {
+                // Temporarily remove the scene background so it exports transparent
+                scene.background = null;
+
+                // Force clear color alpha to 0
+                const originalClearAlpha = renderer.getClearAlpha();
+                renderer.setClearAlpha(0);
+
+                // Resize the renderer for high-res
+                renderer.setPixelRatio(1); // Reset pixel ratio to 1 so our manual scaling is exact
+                renderer.setSize(exportWidth, exportHeight, false); // stops Three.js from resizing CSS/DOM elements
+
+                // Render the high-res frame
+                renderer.render(scene, camera);
+
+                // Extract data and trigger download
+                // Grab the raw image data from the canvas buffer immediately after rendering
+                const dataURL = renderer.domElement.toDataURL('image/png');
+
+                const link = document.createElement('a');
+                link.href = dataURL;
+                link.download = `view_${quadrantId}_highres_${Date.now()}.png`;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+
+                // Restore clear alpha
+                renderer.setClearAlpha(originalClearAlpha);
+
+            } catch (error) {
+                console.error('PNG export failed:', error);
+                alert('High-Res PNG export failed. Check console for details.');
+            } finally {
+                // Restore original state
+                // Put the background, size, and pixel ratio back exactly as they were
+                scene.background = originalBackground;
+                renderer.setPixelRatio(originalPixelRatio);
+                renderer.setSize(originalSize.x, originalSize.y, false); // False prevents CSS disruption
+
+                // Render again to fix the visible canvas on the screen
+                renderer.render(scene, camera);
+            }
+        }
+
+        function exportColorbar(format) {
+            const width = 120;
+            const height = 300;
+            const canvas = document.createElement('canvas');
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+
+            ctx.fillStyle = '#111111';
+            ctx.fillRect(0, 0, width, height);
+
+            const gradient = ctx.createLinearGradient(0, height - 20, 0, 20);
+            const steps = 20;
+            for (let i = 0; i < steps; i++) {
+                const t = i / (steps - 1);
+                const color = getColorFromMap(currentColormapId, t);
+                gradient.addColorStop(t, rgbToCss(color));
+            }
+            ctx.fillStyle = gradient;
+            ctx.fillRect(10, 20, 20, height - 40);
+
+            ctx.fillStyle = '#ffffff';
+            ctx.font = '12px sans-serif';
+            ctx.textAlign = 'left';
+            ctx.fillText(currentColorRange.max.toFixed(3), 35, 30);
+            ctx.fillText(((currentColorRange.min + currentColorRange.max) / 2).toFixed(3), 35, height / 2);
+            ctx.fillText(currentColorRange.min.toFixed(3), 35, height - 25);
+            ctx.fillText(COLOR_MAPS[currentColormapId].name, 10, height - 5);
+
+            const timestamp = Date.now();
+            if (format === 'png') {
+                const link = document.createElement('a');
+                link.download = `colorbar_${timestamp}.png`;
+                link.href = canvas.toDataURL('image/png');
+                link.click();
+            } else if (format === 'svg') {
+                const svgString = generateColorbarSVG();
+                const blob = new Blob([svgString], { type: 'image/svg+xml;charset=utf-8' });
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.download = `colorbar_${timestamp}.svg`;
+                link.href = url;
+                link.click();
+                URL.revokeObjectURL(url);
+            }
+        }
+
+        function generateColorbarSVG() {
+            const width = 120;
+            const height = 300;
+            let stops = '';
+            const steps = 20;
+            for (let i = 0; i < steps; i++) {
+                const t = i / steps;
+                const color = getColorFromMap(currentColormapId, t);
+                stops += `<stop offset="${(t * 100).toFixed(1)}%" stop-color="${rgbToCss(color)}" />`;
+            }
+
+            return `<?xml version="1.0" encoding="UTF-8"?>
+        <svg width="${width}" height="${height}" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <linearGradient id="barGrad" x1="0" y1="1" x2="0" y2="0">
+              ${stops}
+            </linearGradient>
+          </defs>
+          <rect width="${width}" height="${height}" fill="#111111"/>
+          <rect x="10" y="20" width="20" height="${height - 40}" fill="url(#barGrad)"/>
+          <text x="35" y="30" fill="white" font-family="sans-serif" font-size="12">${currentColorRange.max.toFixed(3)}</text>
+          <text x="35" y="${height / 2 + 4}" fill="white" font-family="sans-serif" font-size="12">${((currentColorRange.min + currentColorRange.max) / 2).toFixed(3)}</text>
+          <text x="35" y="${height - 25}" fill="white" font-family="sans-serif" font-size="12">${currentColorRange.min.toFixed(3)}</text>
+          <text x="10" y="${height - 5}" fill="white" font-family="sans-serif" font-size="12">${COLOR_MAPS[currentColormapId].name}</text>
+        </svg>`;
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,86 @@
+{{ define "main" }}
+  <div class="hx-mx-auto hx-flex {{ partial `utils/page-width` . }}">
+    {{ partial "sidebar.html" (dict "context" . "disableSidebar" true "displayPlaceholder" true) }}
+    {{ partial "toc.html" . }}
+    
+    <article class="hx-w-full hx-break-words hx-flex hx-min-h-[calc(100vh-var(--navbar-height))] hx-min-w-0 hx-justify-center hx-pb-16 hx-pr-[calc(env(safe-area-inset-right)-1.5rem)]">
+      <main class="hx-w-full hx-min-w-0 hx-max-w-6xl hx-px-6 hx-pt-12 md:hx-px-12">
+        
+        {{/* --- TOP HEADER SECTION --- */}}
+        <div class="task-info hx-w-full hx-mb-8">
+          
+          {{/* Top Bar: Clean Back Link */}}
+          <div class="hx-flex hx-items-center hx-mb-8">
+            <a href="/roadmap/" class="hx-inline-flex hx-items-center hx-text-sm hx-font-semibold hx-text-gray-500 hover:hx-text-gray-900 dark:hx-text-gray-400 dark:hover:hx-text-white hx-transition-colors" style="gap: 0.5rem;">
+              &larr; {{ T "backToRoadmap" }}
+            </a>
+          </div>
+
+          {{/* Title & Description */}}
+          <div class="hx-flex hx-flex-col" style="gap: 1rem;">
+            {{ if .Title }}
+              <h1 class="hx-text-4xl md:hx-text-5xl hx-font-extrabold hx-tracking-tight hx-text-gray-900 dark:hx-text-white">
+                {{ .Title }}
+              </h1>
+            {{ end }}
+            
+            {{ if .Description }}
+              <p class="hx-text-lg hx-text-gray-600 dark:hx-text-gray-400 hx-max-w-3xl">
+                {{ .Description }}
+              </p>
+            {{ end }}
+          </div>
+
+          {{/* Expanded Metadata Row */}}
+          <div class="hx-flex hx-flex-wrap hx-items-center hx-mt-8" style="gap: 1rem;">
+            
+            {{/* Status Badge */}}
+            {{ $status := "" }}
+            {{ if in .RelPermalink "/planned/" }}{{ $status = "planned" }}
+            {{ else if in .RelPermalink "/in-progress/" }}{{ $status = "in-progress" }}
+            {{ else if in .RelPermalink "/completed/" }}{{ $status = "completed" }}
+            {{ end }}
+
+            {{ if $status }}
+              <div class="hx-inline-flex hx-items-center hx-px-3 hx-py-1.5 hx-text-xs hx-font-bold hx-uppercase hx-tracking-wide" style="border-radius: 0.5rem; {{ if eq $status "completed" }}background: rgba(16, 185, 129, 0.15); color: #10b981; border: 1px solid rgba(16,185,129,0.2);{{ else if eq $status "in-progress" }}background: rgba(59, 130, 246, 0.15); color: #3b82f6; border: 1px solid rgba(59,130,246,0.2);{{ else }}background: rgba(107, 114, 128, 0.15); color: #6b7280; border: 1px solid rgba(107,114,128,0.2);{{ end }}">
+                {{ $status | humanize }}
+              </div>
+            {{ end }}
+
+            {{/* Version Badge */}}
+            {{ if .Params.version }}
+              <div class="hx-inline-flex hx-items-center hx-px-3 hx-py-1.5 hx-text-gray-700 dark:hx-text-gray-300 hx-font-semibold hx-text-sm" style="border-radius: 0.5rem; background: rgba(156, 163, 175, 0.15); border: 1px solid rgba(156, 163, 175, 0.2);">
+                <span>{{ .Params.version }}</span>
+              </div>
+            {{ end }}
+
+            {{/* Time Badge */}}
+            {{ if .Params.time }}
+              <div class="hx-inline-flex hx-items-center hx-px-3 hx-py-1.5 hx-text-gray-700 dark:hx-text-gray-300 hx-font-semibold hx-text-sm" style="border-radius: 0.5rem; gap: 0.5rem; background: rgba(156, 163, 175, 0.15); border: 1px solid rgba(156, 163, 175, 0.2);">
+                {{ partial "utils/icon.html" (dict "name" "clock" "attributes" "height=16") }}
+                <span>{{ .Params.time }}</span>
+              </div>
+            {{ end }}
+            
+          </div>
+        </div>
+
+        {{/* --- SEPARATOR --- */}}
+        <hr class="dark:hx-border-gray-800 hx-mb-8">
+
+        {{/* --- MAIN CONTENT --- */}}
+        <div class="content markdown hx-prose dark:hx-prose-invert">
+          {{ .Content }}
+        </div>
+        
+        {{ partial "components/last-updated.html" . }}
+        
+        <div class="hx-mt-12">
+          {{ .Scratch.Set "reversePagination" true }}
+          {{ partial "components/pager.html" . }}
+        </div>
+        
+      </main>
+    </article>
+  </div>
+{{ end }}

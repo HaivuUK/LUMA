@@ -1,0 +1,114 @@
+{{ define "main" }}
+  {{/* 1. Initialize empty slices (arrays) for our columns */}}
+  {{ $planned := slice }}
+  {{ $inProgress := slice }}
+  {{ $completed := slice }}
+
+  {{/* 2. Grab ALL tasks inside the roadmap section, and sort by checking their URL path */}}
+  {{ range .RegularPagesRecursive }}
+    {{ if in .RelPermalink "/planned/" }}
+      {{ $planned = $planned | append . }}
+    {{ else if in .RelPermalink "/in-progress/" }}
+      {{ $inProgress = $inProgress | append . }}
+    {{ else if in .RelPermalink "/completed/" }}
+      {{ $completed = $completed | append . }}
+    {{ end }}
+  {{ end }}
+
+  <div class='hx-mx-auto hx-flex {{ partial "utils/page-width" . }}'>
+    {{ partial "sidebar.html" (dict "context" . "disableSidebar" true) }}
+    
+    <div class="hx-w-full hx-break-words hx-min-h-[calc(100vh-var(--navbar-height))] hx-min-w-0 hx-pb-24 hx-pt-12 hx-px-6 md:hx-px-12">
+      
+      {{/* Header Area */}}
+      <div class="hx-text-center hx-mb-16">
+        {{ if .Title }}
+          <h1 class="hx-mt-2 hx-text-4xl md:hx-text-5xl hx-font-extrabold hx-tracking-tight hx-text-gray-900 dark:hx-text-white">
+            {{ .Title }}
+          </h1>
+        {{ end }}
+        {{ if .Description }}
+          <p class="hx-mt-4 hx-text-lg hx-text-gray-500 dark:hx-text-gray-400 hx-max-w-2xl hx-mx-auto">
+            {{ .Description }}
+          </p>
+        {{ end }}
+      </div>
+
+      {{/* Introduction Text Area */}}
+      <div class="content hx-mb-12 markdown hx-prose dark:hx-prose-invert">
+        {{ .Content }}
+      </div>
+
+      {{/* Kanban Board Grid - Guaranteed Gaps via Style */}}
+      <div class="hx-grid hx-grid-cols-1 lg:hx-grid-cols-3" style="gap: 2.5rem;">
+        
+        {{/* Column 1: Planned */}}
+        <div class="hx-flex hx-flex-col hx-bg-gray-50 dark:hx-bg-neutral-900 hx-p-6 hx-border hx-border-gray-200 dark:hx-border-neutral-800" style="border-radius: 1.5rem; box-shadow: 0 10px 30px -10px rgba(0,0,0,0.2);">
+          
+          <div class="hx-mb-8 hx-flex hx-items-center hx-justify-start" style="gap: 1rem;">
+            <div class="hx-flex hx-items-center hx-justify-center hx-bg-white dark:hx-bg-black hx-border hx-border-gray-200 dark:hx-border-neutral-700" style="width: 2.5rem; height: 2.5rem; border-radius: 0.75rem;">
+              <span class="dark:hx-bg-gray-400 hx-bg-gray-500" style="display: block; width: 12px; height: 12px; border-radius: 50%;"></span>
+            </div>
+            <div>
+              <h3 class="hx-font-bold hx-text-xl hx-text-gray-900 dark:hx-text-white">Planned</h3>
+              <p class="hx-text-xs hx-font-semibold hx-text-gray-500 dark:hx-text-gray-400 hx-uppercase">
+                {{ len $planned }} pending
+              </p>
+            </div>
+          </div>
+
+          <div class="hx-flex hx-flex-col" style="gap: 1.25rem;">
+            {{ range sort $planned "Weight" }}
+              {{ partial "kanban-card.html" . }}
+            {{ end }}
+          </div>
+        </div>
+
+        {{/* Column 2: In Progress */}}
+        <div class="hx-flex hx-flex-col hx-bg-white dark:hx-bg-neutral-900 hx-p-6 hx-border hx-border-blue-200 dark:hx-border-blue-900" style="border-radius: 1.5rem; box-shadow: 0 0 30px rgba(59, 130, 246, 0.25);">
+          
+          <div class="hx-mb-8 hx-flex hx-items-center hx-justify-start" style="gap: 1rem;">
+            <div class="hx-flex hx-items-center hx-justify-center hx-bg-blue-50 dark:hx-bg-blue-950 hx-border hx-border-blue-200 dark:hx-border-blue-800" style="width: 2.5rem; height: 2.5rem; border-radius: 0.75rem;">
+              <span class="hx-bg-blue-500 hx-animate-pulse" style="display: block; width: 12px; height: 12px; border-radius: 50%; box-shadow: 0 0 10px #3b82f6;"></span>
+            </div>
+            <div>
+              <h3 class="hx-font-bold hx-text-xl hx-text-blue-900 dark:hx-text-blue-400">In Progress</h3>
+              <p class="hx-text-xs hx-font-semibold hx-text-blue-600 dark:hx-text-blue-500 hx-uppercase">
+                {{ len $inProgress }} active
+              </p>
+            </div>
+          </div>
+
+          <div class="hx-flex hx-flex-col" style="gap: 1.25rem;">
+            {{ range sort $inProgress "Weight" }}
+              {{ partial "kanban-card.html" . }}
+            {{ end }}
+          </div>
+        </div>
+
+        {{/* Column 3: Completed */}}
+        <div class="hx-flex hx-flex-col hx-bg-white dark:hx-bg-neutral-900 hx-p-6 hx-border hx-border-green-200 dark:hx-border-green-900" style="border-radius: 1.5rem; box-shadow: 0 0 30px rgba(16, 185, 129, 0.20);">
+          
+          <div class="hx-mb-8 hx-flex hx-items-center hx-justify-start" style="gap: 1rem;">
+            <div class="hx-flex hx-items-center hx-justify-center hx-bg-green-50 dark:hx-bg-green-950 hx-border hx-border-green-200 dark:hx-border-green-800" style="width: 2.5rem; height: 2.5rem; border-radius: 0.75rem;">
+              <span class="hx-bg-green-500" style="display: block; width: 12px; height: 12px; border-radius: 50%; box-shadow: 0 0 10px #10b981;"></span>
+            </div>
+            <div>
+              <h3 class="hx-font-bold hx-text-xl hx-text-green-900 dark:hx-text-green-400">Completed</h3>
+              <p class="hx-text-xs hx-font-semibold hx-text-green-600 dark:hx-text-green-500 hx-uppercase">
+                {{ len $completed }} shipped
+              </p>
+            </div>
+          </div>
+
+          <div class="hx-flex hx-flex-col" style="gap: 1.25rem;">
+            {{ range sort $completed "Weight" }}
+              {{ partial "kanban-card.html" . }}
+            {{ end }}
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+{{ end }}

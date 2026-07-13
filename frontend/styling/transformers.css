@@ -1,0 +1,67 @@
+@import url('styles.css');
+
+.transform-controls {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 12px;
+    background: rgba(0, 0, 0, 0.85);
+    border-radius: 8px;
+    color: white;
+    width: 220px;
+    z-index: 250;
+    pointer-events: auto;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
+    cursor: grab;
+    touch-action: none;
+    user-select: none;
+}
+.transform-controls .transform-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+}
+.transform-controls .transform-subheading {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: #bbdefb;
+    margin-top: 6px;
+}
+.transform-controls .transform-subheading:first-of-type {
+    margin-top: 2px;
+}
+.transform-controls .transform-divider {
+    height: 1.5px;
+    width: 100%;
+    background: rgba(255, 255, 255, 0.12);
+    border: none;
+    margin: 6px 0 2px;
+}
+.transform-controls .transform-row {
+    display: grid;
+    grid-template-columns: 16px 1fr 50px;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+}
+.transform-controls .transform-row label {
+    font-weight: 600;
+    text-align: center;
+}
+.transform-controls .transform-row input[type="range"] {
+    width: 100%;
+    accent-color: var(--slider-colour);
+}
+.transform-controls .transform-row .value {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+}

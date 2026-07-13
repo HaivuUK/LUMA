@@ -1,0 +1,71 @@
+@import url('styles.css');
+
+.histogram-panel {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background: rgba(0, 0, 0, 0.8);
+    color: white;
+    touch-action: none;
+    user-select: none;
+    cursor: grab;
+    padding: 10px;
+    border-radius: 6px;
+    font-size: 12px;
+    z-index: 120;
+    width: 340px;
+}
+.histogram-panel.dragging {
+    cursor: grabbing;
+}
+.histogram-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 6px;
+    font-weight: bold;
+}
+.histogram-legend {
+    margin-top: 6px;
+    font-size: 11px;
+    color: rgba(255, 255, 255, 0.8);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+    box-sizing: border-box;
+    padding: 0 6px;
+}
+.histogram-legend span {
+    flex: 0 0 auto;
+}
+.histogram-axis-controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 6px;
+    font-size: 11px;
+    color: white;
+    align-items: center;
+}
+.histogram-axis-controls input,
+.histogram-axis-controls select {
+    width: 60px;
+    background: rgba(255, 255, 255, 0.9);
+    border: 1px solid #ccc;
+    padding: 2px 4px;
+    border-radius: 3px;
+    font-size: 11px;
+}
+.histogram-axis-controls button {
+    background: var(--button-colour);
+    border: var(--button-border);
+    color: var(--button-text-colour);
+    padding: var(--button-padding);
+    border-radius: var(--button-border-radius);
+    cursor: pointer;
+    font-size: 11px;
+}
+.histogram-axis-controls button:hover { 
+    background: var(--button-hover-colour); 
+}

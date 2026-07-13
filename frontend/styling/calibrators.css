@@ -1,0 +1,199 @@
+@import url('styles.css');
+
+.calibration-controls {
+    position: absolute;
+    bottom: 10px;
+    right: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 12px;
+    background: rgba(0, 0, 0, 0.85);
+    border-radius: 8px;
+    color: white;
+    width: 220px;
+    z-index: 250;
+    pointer-events: auto;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
+    cursor: grab;
+    touch-action: none;
+    user-select: none;
+}
+.calibration-controls .calibration-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+}
+.calibration-controls .calibration-subheading {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: #bbdefb;
+    margin-top: 6px;
+}
+.calibration-controls .calibration-subheading:first-of-type {
+    margin-top: 2px;
+}
+.calibration-controls .calibration-divider {
+    height: 1.5px;
+    width: 100%;
+    background: rgba(255, 255, 255, 0.12);
+    border: none;
+    margin: 6px 0 2px;
+}
+.calibration-controls .calibration-row {
+    display: grid;
+    grid-template-columns: 16px 1fr 50px;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+}
+.calibration-controls .calibration-row label {
+    font-weight: 600;
+    text-align: center;
+}
+.calibration-controls .calibration-row input[type="range"] {
+    width: 100%;
+    accent-color: var(--slider-colour);
+}
+.calibration-controls .calibration-row .value {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+}
+.calibration-controls .roi-list-container {
+    max-height: 50vh;
+    overflow-y: auto;
+    overflow-x: hidden;
+}
+.calibration-controls .roi-row {
+    background: var(--wrapper-background);
+}
+.calibration-controls input {
+    padding: var(--button-padding);
+    border-radius: var(--button-border-radius);
+    border: var(--input-border-colour);
+    background: var(--input-background);
+    color: var(--button-text-colour);
+}
+.calibration-controls .range-group {
+    display: grid;
+    grid-template-columns: 20px 80px 20px 80px;
+    justify-content: space-between;
+    vertical-align: center;
+    padding: 4px;
+    font-size: 12px;
+}
+.calibration-controls .range-group label {
+    font-size: 14px;
+    align-content: center;
+}
+.calibration-controls .mean-hu-display {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 12px;
+    padding: 4px;
+}
+.calibration-controls .calibration-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 12px;
+    padding: 4px;
+}
+.calibration-controls .calibration-result {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    font-size: 12px;
+}
+.calibration-controls .roi-row-top {
+    display: grid;
+    grid-template-columns: 30px 100px 30px;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 12px;
+    padding: 4px;
+    gap: 2px;
+}
+.calibration-controls .roi-toggle {
+    width: 2rem;
+    height: 2rem;
+    padding: 0;
+    border-radius: var(--button-border-radius);
+    border: none;
+    background: rgba(19, 153, 194, 0.8);
+    backdrop-filter: saturate(180%) blur(20px);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.calibration-controls .roi-toggle:hover {
+    background: rgba(11, 186, 239, 0.8);
+}
+.calibration-controls .roi-toggle span {
+    /* Variables map the states: 1 = Down (V), -1 = Up (^) */
+    --dir: 1;
+    --orig: 100%;
+    --moveY: 0px;
+
+    position: relative;
+    width: 1.5rem;
+    height: 0.563rem;
+    transform: translateY(var(--moveY));
+    transition: transform 1s cubic-bezier(.86, 0, .07, 1);
+}
+.calibration-controls .roi-toggle span:before,
+.calibration-controls .roi-toggle span:after {
+    content: "";
+    position: absolute;
+    bottom: 0;
+    width: 0.75rem;
+    height: 0.125rem;
+    background-color: rgb(245, 245, 247);
+    transition: transform 200ms cubic-bezier(.86, 0, .07, 1),
+    transform-origin 200ms cubic-bezier(.86, 0, .07, 1);
+}
+.calibration-controls .roi-toggle span:before {
+    right: 50%;
+    border-radius: 2px 0 0 2px;
+    transform-origin: 100% var(--orig);
+    transform: rotate(calc(40deg * var(--dir)));
+}
+.calibration-controls .roi-toggle span:after {
+    left: 50%;
+    border-radius: 0 2px 2px 0;
+    transform-origin: 0 var(--orig);
+    transform: rotate(calc(-40deg * var(--dir)));
+}
+.calibration-controls .roi-row[data-expanded="true"] .roi-toggle span {
+    --dir: -1;
+    --orig: 0%;
+    --moveY: -8px;
+}
+.calibration-controls .btn-delete-roi {
+    padding: var(--button-padding);
+    border-radius: var(--button-border-radius);
+    border: none;
+    background: var(--button-close-colour);
+    color: var(--button-text-colour);
+}
+.calibration-controls .btn-delete-roi:hover {
+    background: var(--button-close-hover-colour);
+}
+.calibration-controls .input-inline {
+    display: grid;
+    grid-template-columns: 100px 100px;
+    justify-content: space-between;
+    align-items: center;
+    padding: 4px;
+}
+.calibration-controls .input-inline label {
+    font-size: 14px;
+}

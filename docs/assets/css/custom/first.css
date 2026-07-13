@@ -1,0 +1,250 @@
+:root {
+  --bg-roadmap-modal: white;
+  --roadmap-step-pointer: black;
+  --color-black: 0, 0, 0;
+  --color-white: 255, 255, 255;
+}
+
+.dark {
+  --bg-roadmap-modal: #181818;
+  --roadmap-step-pointer: white;
+  --color-black: 255, 255, 255;
+  --color-white: 0, 0, 0;
+}
+
+section#what-is-luma,
+section#community {
+  padding: 10rem 0 10rem 0;
+}
+
+section#contributors {
+  padding-top: 12rem;
+}
+
+/* Font Faces */
+@font-face {
+  font-family: "Roboto";
+  font-display: swap;
+  src: url("/fonts/Roboto/RobotoFlex.ttf") format("truetype");
+  font-weight: normal;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: "Roboto-Bold";
+  font-display: swap;
+  src: url("/fonts/Roboto/RobotoFlex.ttf") format("truetype");
+  font-weight: 600;
+}
+
+@font-face {
+  font-family: "Roboto-SemiBold";
+  font-display: swap;
+  src: url("/fonts/Roboto/RobotoFlex.ttf") format("truetype");
+  font-weight: 600;
+}
+
+@font-face {
+  font-family: "ScienceGothic";
+  font-display: optional;
+  src: url("/fonts/ScienceGoth/ScienceGothic.ttf") format("truetype");
+  font-weight: normal;
+  font-style: normal; 
+}
+
+@font-face {
+  font-family: "fira-code";
+  font-display: optional;
+  src: url("/fonts/Fira/FiraCode.ttf") format("truetype");
+  font-weight: normal;
+  font-style: normal;
+}
+
+/* Language Dropdown */
+.language-theme-container {
+  display: flex;
+  align-items: center;
+}
+
+.language-options {
+  position: fixed;
+  inset: auto auto -160px 0;
+  margin: 0;
+  min-width: 100px;
+  height: 140px;
+}
+
+.language-theme-sidebar-container {
+  display: none;
+}
+
+.language-switcher-label {
+  display: none;
+  font-size: 1rem;
+  color: var(--color-black);
+}
+
+.language-switcher-label svg {
+  margin-top: auto;
+  margin-bottom: auto;
+  margin-right: 3px;
+}
+
+.language-flag-icon {
+  margin-top: auto;
+  margin-bottom: auto;
+  margin-right: 3px;
+}
+
+@media (max-width: 768px) {
+  .language-theme-container {
+    display: none;
+  }
+
+  .language-theme-sidebar-container {
+    display: block;
+  }
+
+  .language-theme-sidebar-container .language-options {
+    inset: auto auto 0 0;
+  }
+
+  .language-switcher-label {
+    display: inline-flex;
+  }
+
+  .language-switcher-flag-current {
+    display: none;
+  }
+}
+
+/* Hero Section */
+.hero {
+  width: 100%;
+  margin-bottom: 10rem;
+}
+
+/* Updated grid container: full screen breakout + calming fade effects */
+.hero-fem {
+  position: absolute;
+  top: 0;
+  
+  /* Foolproof breakout: forces full viewport width even inside constrained containers */
+  width: 100vw;
+  left: 50%;
+  transform: translateX(-50%);
+  
+  height: 120vh; /* Matches your original desktop wave height */
+  pointer-events: none;
+  z-index: -1;
+
+  /* Lowers visual intensity to keep it safely in the background */
+  opacity: 0.65; 
+
+  /* Modern 2D mask: smoothly dissolves the grid towards the left, right, top, and bottom edges */
+ -webkit-mask-image: linear-gradient(
+    to bottom, 
+    transparent 0%, 
+    rgba(0,0,0,1) 5%, 
+    rgba(0,0,0,1) 50rem, /* Adjust this value to match your hero section content depth */
+    transparent 65rem
+  );
+  mask-image: linear-gradient(
+    to bottom, 
+    transparent 0%, 
+    rgba(0,0,0,1) 5%, 
+    rgba(0,0,0,1) 50rem, 
+    transparent 65rem
+  );
+}
+
+.hero-fem svg.fem {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+@media (max-width: 260px) {
+  .hero-fem { display: none; }
+}
+
+@media (max-width: 520px) {
+}
+
+@media (max-height: 580px) {
+  .hero-fem { display: none; }
+}
+
+@media (max-height: 640px) {
+  .hero {
+    padding-top: 0rem !important;
+  }
+}
+
+@media (max-height: 750px) {
+}
+
+@media (max-height: 800px) and (max-width: 900px) {
+  .hero {
+    padding-top: 0rem !important;
+  }
+}
+
+@media (max-height: 850px) {
+  .hero {
+    padding-top: 5rem;
+  }
+}
+
+@media (min-height: 1200px) {
+  .hero-fem {
+    display: block;
+    top: 0;
+    height: 100%;
+  }
+}
+
+/* Start Now Button */
+.start-now-button {
+  position: relative;
+  overflow: hidden;
+  display: inline-flex;
+  align-items: center;
+}
+
+.start-now-button .arrow {
+  position: relative;
+  display: inline-block;
+  margin-left: 0.5rem;
+  transition: transform 0.2s ease-in-out;
+}
+
+.start-now-button:hover .arrow {
+  transform: translateX(0.25rem);
+}
+
+/* Not Sure Button */
+.not-sure-button {
+  scale: 0.97;
+  border: 1px solid transparent;
+  background-color: #ffffff25;
+  transition: all 0.2s ease-in-out;
+  border-color: #6b29c293;
+}
+
+.not-sure-button:hover {
+  border-color: #6b29c2;
+  background-color: #9250e9;
+  color: #fff;
+}
+
+.dark .not-sure-button:hover {
+  border-color: #6b29c2;
+  background-color: #9250e9;
+}
+
+@media (max-width: 517px) {
+  .not-sure-button {
+    scale: 1;
+  }
+}

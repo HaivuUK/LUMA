@@ -1,0 +1,77 @@
+{{ define "main" }}
+  <div class='hx-mx-auto hx-flex {{ partial "utils/page-width" . }}'>
+    {{ partial "sidebar.html" (dict "context" . "disableSidebar" true "displayPlaceholder" false) }}
+    <div class="container hx-w-full hx-flex hx-flex-col hx-items-center hx-justify-center hx-py-20">
+      <div class="hx-text-center">
+        <h2 class="hx-text-2rem hx-text-center hx-font-bold">
+          404<span class="separator"></span>{{ T "404Message" }}
+        </h2>
+        
+        {{/* This button will only reveal itself if an English version of the broken page exists */}}
+        <div id="en-redirect-wrapper" class="hx-mt-8 hx-hidden">
+          <p class="hx-text-sm hx-text-gray-500 dark:hx-text-gray-400 hx-mb-4">
+            This page isn't available in {{ .Language.Label }}, but an English version exists:
+          </p>
+          <a 
+            id="en-redirect-btn"
+            href="#" 
+            class="hx-inline-flex hx-items-center hx-w-64 hx-gap-2 hx-bg-primary-600 hover:hx-bg-primary-700 hx-text-white hx-text-sm hx-font-medium hx-px-5 hx-py-2.5 hx-rounded-lg hx-transition-all hx-shadow-sm focus:hx-ring-2 focus:hx-ring-primary-500" style="margin: 2px; align-items: center; justify-content: center; display: inline-flex;"
+          >
+            Read in English
+            <span>→</span>
+          </a>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <script>
+    document.addEventListener("DOMContentLoaded", function () {
+      const currentPath = window.location.pathname;
+      const currentLang = "{{ .Language.Lang }}";
+
+      if (currentLang === "en") {
+        // =========================================================================
+        // CASE A: The user landed on the root English 404 page.
+        // Check if they were actually trying to view a localized subfolder (like /sv/)
+        // =========================================================================
+        const match = currentPath.match(/^\/([a-z]{2})\//);
+        if (match && match[1] !== "en") {
+          const targetLang = match[1];
+          // Instantly bounce them to the real Swedish 404 page, passing the original broken path
+          window.location.replace('/' + targetLang + '/404.html?orig=' + encodeURIComponent(currentPath));
+        }
+      } else {
+        // =========================================================================
+        // CASE B: The user is now on the translated 404 page (e.g., /sv/404.html).
+        // Read the URL parameter to find out what original file they were looking for.
+        // =========================================================================
+        const urlParams = new URLSearchParams(window.location.search);
+        const origPath = urlParams.get('orig');
+        
+        if (origPath) {
+          const langPrefix = '/' + currentLang + '/';
+          if (origPath.includes(langPrefix)) {
+            // Strip the "/sv/" out to calculate the default English route alternative
+            const enPath = origPath.replace(langPrefix, '/');
+            
+            // Check if the English page actually exists on the server
+            fetch(enPath, { method: 'HEAD' })
+              .then(response => {
+                if (response.ok) {
+                  const btn = document.getElementById('en-redirect-btn');
+                  const wrapper = document.getElementById('en-redirect-wrapper');
+                  if (btn && wrapper) {
+                    btn.href = enPath;
+                    wrapper.classList.remove('hx-hidden'); // Reveal the button!
+                  }
+                }
+              })
+              .catch(err => console.log("No English page alternative found."));
+          }
+        }
+      }
+    });
+  </script>
+{{ end }}

@@ -1,0 +1,31 @@
+@import url('styles.css');
+
+.quadrant-container {
+    width: 100vw;
+    height: 100vh;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: 1fr 1fr;
+    gap: 2px;
+    background: #333;
+}
+.quadrant {
+    background: #000;
+    position: relative;
+    overflow: hidden;
+    cursor: grab;
+}
+.quadrant:active {
+    cursor: grabbing;
+}
+.quadrant-label {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    color: white;
+    font-weight: bold;
+    z-index: 100;
+    background: rgba(0,0,0,0.7);
+    padding: 5px 10px;
+    border-radius: 3px;
+}

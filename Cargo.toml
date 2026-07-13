@@ -1,0 +1,67 @@
+[package]
+name = "luma"
+version = "0.3.0"
+edition = "2024"
+license = "AGPL-3.0-or-later"
+description = "Rust tool to assign bone material properties to finite element meshes from CT data"
+repository = "https://github.com/INSIGNEO/LUMA"
+authors = ["George Allison", "Haivu"]
+
+[package.metadata.dist]
+
+[package.metadata.wix]
+upgrade-guid = "85513B88-8E2B-4588-8EFA-26DC9D0455A0"
+path-guid = "666954E5-187F-4865-A5DC-B66B0EE47F20"
+license = true
+eula = false
+
+[dependencies]
+anyhow = "1"
+clap = { version = "4", features = ["derive"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+toml = "1"
+log = "0.4"
+env_logger = "0.11"
+rayon = "1"
+vtkio = "0.6"
+dicom-object = "0.10"
+dicom-pixeldata = "0.10"
+regex = "1"
+lazy_static = "1"
+once_cell = "1"
+indicatif = "0.18"
+palette = "0.7"
+bytemuck = { version = "1", features = ["derive"] }
+tauri = { version = "2", features = ["macos-private-api"] }
+nifti = { version = "0.17", features = ["ndarray_volumes", "nalgebra_affine"] }
+nalgebra = "0.33"
+flate2 = "1"
+bzip2 = "0.6"
+
+[dev-dependencies]
+tempfile = "3"
+assert_cmd = "2"
+predicates = "3"
+
+[[bin]]
+name = "luma"
+path = "src/main.rs"
+
+[[example]]
+name = "test_logging"
+path = "examples/test_logging.rs"
+
+[profile.release]
+codegen-units = 1
+lto = true
+opt-level = 3
+panic = "abort"
+
+# The profile that 'dist' will build with
+[profile.dist]
+inherits = "release"
+lto = "thin"
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }

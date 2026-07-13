@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+  <Fragment>
+    <DirectoryRef Id="TARGETDIR">
+      <Component Id="AppendPathEnv" Guid="*">
+        <RegistryValue 
+          Root="HKCU" 
+          Key="Software\luma\Installer" 
+          Name="PathAdded" 
+          Type="integer" 
+          Value="1" 
+          KeyPath="yes" 
+        />
+        
+        <Environment 
+          Id="PathEnvVar" 
+          Name="Path" 
+          Action="set" 
+          Part="last" 
+          System="no" 
+          Value="[INSTALLDIR]" 
+        />
+      </Component>
+    </DirectoryRef>
+  </Fragment>
+</Wix>

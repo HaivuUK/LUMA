@@ -1,0 +1,213 @@
+/* 1. Hero Section */
+/* In ./first.css */
+
+/* 2. What is LUMASection */
+section#what-is-luma {
+  text-align: center;
+}
+
+.hover-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1.5rem;
+}
+
+.hover-card {
+  display: flex;
+  flex-direction: column;
+  padding: 2rem;
+  border: 1px solid #e5e7eb;
+  border-radius: 1rem;
+  text-decoration: none;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
+}
+
+.hover-card:hover,
+.hover-card:focus {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 25px rgba(0, 0, 0, 0.12);
+}
+
+html[class~="dark"] .hover-card {
+  border-color: #2a2a2a;
+}
+
+@media (max-width: 768px) {
+  .hover-cards-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (min-width: 768px) {
+  .hover-card:last-child {
+    grid-column: span 2;
+  }
+
+  .hover-card.cta-card:last-child {
+    padding-inline: 10rem;
+  }
+}
+
+/* 3. Community Section */
+section#community {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+.community-content {
+  order: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.community-cta {
+  text-align: center;
+}
+
+.community-image {
+  width: 100%;
+  max-width: 600px;
+  height: auto;
+  border-radius: 12px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.social-chat-container {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+  margin-top: 1.5rem;
+}
+
+.chat-section {
+  max-width: 300px;
+}
+
+.chat-section-button {
+  display: inline-flex;
+  border: 1px solid;
+  padding: 10px;
+  margin-top: 7px;
+  border-radius: 10px;
+  background: transparent;
+  color: rgb(var(--color-black));
+  transition: all 0.2s ease-in-out;
+}
+
+.chat-section-button:hover {
+  background: rgb(var(--color-black));
+  border-color: rgb(var(--color-black));
+  color: rgb(var(--color-white));
+}
+
+.chat-section {
+  flex: 1;
+  margin-right: 2rem;
+}
+.chat-section:last-child {
+  margin-right: 0;
+}
+
+.chat-section .platform-icons {
+  justify-content: center;
+}
+
+@media (max-width: 535px) {
+  .social-chat-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1rem;
+  }
+
+  .chat-section {
+    margin-right: 0rem;
+  }
+}
+
+@media (min-width: 1149px) {
+  section#community {
+    flex-direction: row;
+    align-items: flex-start;
+    gap: 4rem;
+  }
+
+  .community-content {
+    flex: 1;
+    order: 1;
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .community-cta {
+    flex: 1;
+    order: 2;
+    text-align: left;
+    margin: auto;
+  }
+
+  .community-cta p {
+    margin: 0;
+  }
+
+  .chat-section .platform-icons {
+    justify-content: left;
+  }
+}
+
+/* 4. Explore Section */
+.explore-link {
+  margin-top: 1.25rem;
+  font-weight: 600;
+  color: #2563eb;
+}
+
+html[class~="dark"] .explore-link {
+  color: #00aeff;
+}
+
+.hover-card h2 svg {
+  margin-top: 2.5px;
+  margin-right: 6px;
+}
+
+/* 5. Contributors Section */
+#contributors {
+  width: 100%;
+  text-align: center;
+  font-size: 2rem;
+}
+
+#shareDropdown {
+  display: none;
+  position: absolute;
+  background-color: white;
+  color: black;
+  padding: 10px;
+  box-shadow: 0px 8px 16px 0px rgba(0, 0, 0, 0.2);
+  font-size: 20px;
+  border-radius: 10px;
+  margin-top: 55px;
+}
+
+.contributors-button {
+  height: 50px;
+  font-size: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 200px;
+  margin: 2px;
+}
+
+.all-contributors-table table tbody tr td {
+  text-align: center;
+}
+@media (max-width: 768px) {
+  .all-contributors-table table tbody tr td {
+    width: 100%;
+  }
+}

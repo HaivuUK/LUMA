@@ -1,0 +1,22 @@
+:root {
+    /* Button Colours */
+    --button-colour: #5353ff;
+    --button-hover-colour: #3a3ac7;
+    --button-active-colour: #6464fc;
+    --button-text-colour: white;
+    --button-close-colour: rgba(255, 0, 0, 0.25);
+    --button-close-hover-colour: rgba(255, 0, 0, 0.65); 
+    /* Button Styling */
+    --button-border-radius: 4px;
+    --button-border: none;
+    --button-padding: 6px 10px;
+    /* Slider Colours */
+    --slider-colour: white;
+    /* Wrapper Colours */
+    --wrapper-background: rgba(0, 0, 0, 0.8);
+    --wrapper-text-colour: white;
+    /* Wrapper Styling */
+    /* Input Styling */
+    --input-background: rgba(100, 100, 100, 0.8);
+    --input-border-colour: rgba(200, 200, 200, 0.8);
+}

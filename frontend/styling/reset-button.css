@@ -1,0 +1,18 @@
+@import url('styles.css');
+
+.reset-button {
+    background: var(--button-colour);
+    border: var(--button-border);
+    color: var(--button-text-colour);
+    padding: var(--button-padding);
+    border-radius: var(--button-border-radius);
+    font-size: 11px;
+    cursor: pointer;
+    white-space: nowrap;
+}
+.reset-button:hover {
+    background: var(--button-hover-colour);
+}
+.reset-button:active {
+    background: var(--button-active-colour);
+}

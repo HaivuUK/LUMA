@@ -1,0 +1,159 @@
+{{- $jsMenu := resources.Get "js/components/menu.js" -}}
+{{- $jsTabs := resources.Get "js/components/tabs.js" -}}
+{{- $jsLang := resources.Get "js/components/lang.js" -}}
+{{- $jsCodeCopy := resources.Get "js/components/code-copy.js" -}}
+{{- $jsFileTree := resources.Get "js/components/filetree.js" -}}
+{{- $jsSidebar := resources.Get "js/components/sidebar.js" -}}
+{{- $jsBackToTop := resources.Get "js/components/back-to-top.js" -}}
+{{- $jsFem := resources.Get "js/fem.js" -}}
+
+{{- $jsTheme := resources.Get "js/theme.js" | resources.ExecuteAsTemplate "theme.js" . -}}
+
+{{- $jsHomepage := resources.Get "js/custom/homepage.js" -}}
+
+{{- $scripts := slice $jsTheme $jsMenu $jsCodeCopy $jsTabs $jsLang $jsFileTree $jsSidebar $jsBackToTop $jsFem $jsHomepage | resources.Concat "js/main.js" -}}
+{{- if hugo.IsProduction -}}
+  {{- $scripts = $scripts | minify | fingerprint -}}
+{{- end -}}
+<script defer src="{{ $scripts.RelPermalink }}" integrity="{{ $scripts.Data.Integrity }}"></script>
+
+
+{{/* Search */}}
+{{- if (site.Params.search.enable | default true) -}}
+  {{- $searchType := site.Params.search.type | default "flexsearch" -}}
+  {{- if eq $searchType "flexsearch" -}}
+    {{- $jsSearchScript := printf "%s.search.js" .Language.Lang -}}
+    {{- $jsSearch := resources.Get "js/flexsearch.js" | resources.ExecuteAsTemplate $jsSearchScript . -}}
+    {{- if hugo.IsProduction -}}
+      {{- $jsSearch = $jsSearch | minify | fingerprint -}}
+    {{- end -}}
+    {{- $flexSearchJS := resources.Get "lib/flexsearch/flexsearch.bundle.min.js" | fingerprint -}}
+    <script defer src="{{ $flexSearchJS.RelPermalink }}" integrity="{{ $flexSearchJS.Data.Integrity }}"></script>
+    <script defer src="{{ $jsSearch.RelPermalink }}" integrity="{{ $jsSearch.Data.Integrity }}"></script>
+  {{- else -}}
+    {{- warnf `search type "%s" is not supported` $searchType -}}
+  {{- end -}}
+{{- end -}}
+
+{{/* Mermaid */}}
+{{/* FIXME: need to investigate .Page.Store hasMermaid is set for homepage */}}
+{{- if and (.Page.Store.Get "hasMermaid") (not .Page.IsHome) -}}
+  {{- $mermaidJS := resources.Get "lib/mermaid/mermaid.min.js" | fingerprint -}}
+  <script defer src="{{ $mermaidJS.RelPermalink }}" integrity="{{ $mermaidJS.Data.Integrity }}"></script>
+  <script>
+    document.addEventListener("DOMContentLoaded", () => {
+      // Store original mermaid code for each diagram
+      document.querySelectorAll(".mermaid").forEach(el => {
+        el.dataset.original = el.innerHTML;
+      });
+
+      const theme = document.documentElement.classList.contains("dark") ? "dark" : "default";
+      mermaid.initialize({ startOnLoad: true, theme: theme });
+
+      let timeout;
+      new MutationObserver(() => {
+        clearTimeout(timeout);
+        timeout = setTimeout(() => {
+          const theme = document.documentElement.classList.contains("dark") ? "dark" : "default";
+          document.querySelectorAll(".mermaid").forEach(el => {
+            // Reset to original content, preserving HTML
+            el.innerHTML = el.dataset.original;
+            el.removeAttribute("data-processed");
+          });
+          mermaid.initialize({ startOnLoad: true, theme: theme });
+          mermaid.init();
+        }, 150);
+      }).observe(document.documentElement, {
+        attributes: true,
+        attributeFilter: ["class"]
+      });
+    });
+  </script>
+{{- end -}}
+
+{{/* KaTex */}}
+{{- if .Page.Params.math -}}
+  {{- $katexCSS := resources.Get "lib/katex/katex.min.css" | fingerprint -}}
+  {{- $katexJS := resources.Get "lib/katex/katex.min.js" | fingerprint -}}
+  {{- $mhchemJS := resources.Get "lib/katex/mhchem.min.js" | fingerprint -}}
+  {{- $katexAutoRenderJS := resources.Get "lib/katex/auto-render.min.js" | fingerprint -}}
+  <link type="text/css" rel="stylesheet" href="{{ $katexCSS.RelPermalink }}" integrity="{{ $katexCSS.Data.Integrity }}" />
+  <script defer src="{{ $katexJS.RelPermalink }}" integrity="{{ $katexJS.Data.Integrity }}"></script>
+  <script defer src="{{ $katexAutoRenderJS.RelPermalink }}" integrity="{{ $katexAutoRenderJS.Data.Integrity }}"></script>
+  <script defer src="{{ $mhchemJS.RelPermalink }}" integrity="{{ $mhchemJS.Data.Integrity }}"></script>
+  {{ $katexFonts := resources.Match "lib/katex/fonts/*" }}
+  {{- range $katexFonts -}}
+    {{ .Publish }}
+  {{- end -}}
+  <script>
+    // TODO: make render options configurable
+    // Reference: https://katex.org/docs/autorender#api
+    document.addEventListener("DOMContentLoaded", function () {
+      renderMathInElement(document.body, {
+        delimiters: [
+          { left: "$$", right: "$$", display: true },
+          { left: "$", right: "$", display: false },
+          { left: "\\(", right: "\\)", display: false },
+          { left: "\\begin{equation}", right: "\\end{equation}", display: true },
+          {left: "\\begin{align}", right: "\\end{align}", display: true},
+          {left: "\\begin{alignat}", right: "\\end{alignat}", display: true},
+          {left: "\\begin{gather}", right: "\\end{gather}", display: true},
+          {left: "\\begin{CD}", right: "\\end{CD}", display: true},
+          { left: "\\[", right: "\\]", display: true },
+        ],
+        throwOnError: false,
+      });
+    });
+  </script>
+{{ end }}
+
+{{/* Tools */}}
+{{- if in .Page.RelPermalink "/tools/ip-address-lookup" -}}
+  {{- $ipAddressLookupJS := resources.Get "js/custom/tools/ip-address-lookup.js" -}}
+  <script defer src="{{ $ipAddressLookupJS.RelPermalink }}" integrity="{{ $ipAddressLookupJS.Data.Integrity }}"></script>
+ 
+  {{- $ipAddressLookupCSS := resources.Get "css/custom/tools/ip-address-lookup.css" }}
+  {{- $ipAddressLookupCSS = $ipAddressLookupCSS | minify | fingerprint }}
+  <link href="{{ $ipAddressLookupCSS.RelPermalink }}" rel="stylesheet" integrity="{{ $ipAddressLookupCSS.Data.Integrity }}" />
+
+  {{- $leafletCSS := resources.Get "lib/leaflet/leaflet.min.css" | fingerprint -}}
+  {{- $leafletJS := resources.Get "lib/leaflet/leaflet.min.js" | fingerprint -}}
+  <link type="text/css" rel="stylesheet" href="{{ $leafletCSS.RelPermalink }}" integrity="{{ $leafletCSS.Data.Integrity }}" />
+  <script defer src="{{ $leafletJS.RelPermalink }}" integrity="{{ $leafletJS.Data.Integrity }}"></script>
+  {{ $leafletImages := resources.Match "lib/leaflet/images/*" }}
+  {{- range $leafletImages -}}
+    {{ .Publish }}
+  {{- end -}}
+{{ end }}
+
+{{- if in .Page.RelPermalink "/tools/url-unshortener" -}}
+  {{- $urlUnshortenerJS := resources.Get "js/custom/tools/url-unshortener.js" -}}
+  <script defer src="{{ $urlUnshortenerJS.RelPermalink }}" integrity="{{ $urlUnshortenerJS.Data.Integrity }}"></script>
+
+  {{- $urlUnshortenerCSS := resources.Get "css/custom/tools/url-unshortener.css" }}
+  {{- $urlUnshortenerCSS = $urlUnshortenerCSS | minify | fingerprint }}
+  <link href="{{ $urlUnshortenerCSS.RelPermalink }}" rel="stylesheet" integrity="{{ $urlUnshortenerCSS.Data.Integrity }}" />
+{{ end }}
+
+{{- if in .Page.RelPermalink "/tools/password-generator" -}}
+  {{- $passwordGeneratorJS := resources.Get "js/custom/tools/password-generator.js" -}}
+  <script defer src="{{ $passwordGeneratorJS.RelPermalink }}" integrity="{{ $passwordGeneratorJS.Data.Integrity }}"></script>
+
+  {{- $passwordGeneratorCSS := resources.Get "css/custom/tools/password-generator.css" }}
+  {{- $passwordGeneratorCSS = $passwordGeneratorCSS | minify | fingerprint }}
+  <link href="{{ $passwordGeneratorCSS.RelPermalink }}" rel="stylesheet" integrity="{{ $passwordGeneratorCSS.Data.Integrity }}" />
+
+  {{ $wordlist := resources.Match "json/*.txt" }}
+  {{- range $wordlist -}}
+    {{ .Publish }}
+  {{- end -}}
+{{ end }}
+
+{{- if in .Page.RelPermalink "/tools/password-strength-tester" -}}
+  {{- $passwordStrengthTesterJS := resources.Get "js/custom/tools/password-strength-tester.js" -}}
+  <script defer src="{{ $passwordStrengthTesterJS.RelPermalink }}" integrity="{{ $passwordStrengthTesterJS.Data.Integrity }}"></script>
+
+  {{- $passwordStrengthTesterCSS := resources.Get "css/custom/tools/password-strength-tester.css" }}
+  {{- $passwordStrengthTesterCSS = $passwordStrengthTesterCSS | minify | fingerprint }}
+  <link href="{{ $passwordStrengthTesterCSS.RelPermalink }}" rel="stylesheet" integrity="{{ $passwordStrengthTesterCSS.Data.Integrity }}" />
+{{ end }}

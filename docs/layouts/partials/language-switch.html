@@ -1,0 +1,56 @@
+{{- $page := .context -}}
+
+{{- $grow := .grow -}}
+{{- $hideLabel := .hideLabel | default false -}}
+
+{{- $changeLanguage := (T "changeLanguage") | default "Change language" -}}
+
+{{- with $page.Rotate "language" -}}
+  <style>
+    .custom-lang-override {
+      height: auto !important;
+      min-height: 0px !important;
+      max-height: none !important;
+      bottom: auto !important;
+    }
+  </style>
+
+  <div class="hx-relative hx-inline-block {{ if $grow }}hx-grow{{ end }}">
+    <button
+      title="{{ $changeLanguage }}"
+      data-state="closed"
+      class="language-switcher hx-flex hx-items-center hx-gap-2 hx-h-8 hx-rounded-md hx-px-3 hx-text-left hx-text-xs hx-font-medium hx-text-gray-600 hx-transition-all hover:hx-bg-gray-100 hover:hx-text-gray-900 dark:hx-text-gray-300 dark:hover:hx-bg-neutral-800 dark:hover:hx-text-neutral-100 hx-w-full focus-visible:hx-ring-2 focus-visible:hx-ring-primary-500"
+      type="button"
+      aria-label="{{ $changeLanguage }}"
+    >      
+      {{- if not $hideLabel }}
+        <span class="hx-font-medium">
+          {{ $page.Language.Label }}
+        </span>
+      {{ end -}}
+    </button>
+
+    <ul class="language-options custom-lang-override hx-hidden hx-absolute hx-right-0 hx-top-full hx-mt-1 hx-w-44 hx-z-50 hx-overflow-hidden hx-rounded-md hx-border hx-border-gray-200/80 hx-bg-white hx-p-1 hx-shadow-md dark:hx-border-neutral-700/85 dark:hx-bg-neutral-900">
+      {{ range . }}
+        <li class="hx-w-full">
+          <a
+            href="{{ .Permalink }}"
+            class="hx-group hx-flex hx-items-center hx-justify-between hx-w-full hx-px-2.5 hx-py-1.5 hx-rounded hx-text-xs hx-text-gray-600 dark:hx-text-gray-400 hover:hx-bg-gray-100/90 hover:hx-text-gray-900 dark:hover:hx-bg-neutral-800 dark:hover:hx-text-neutral-50 hx-transition-all"
+          >
+            <div class="hx-flex hx-items-center hx-truncate">
+              <span class="{{ if eq .Language.Lang $page.Language.Lang }}hx-font-bold hx-text-primary-600 dark:hx-text-primary-400{{ else }}group-hover:hx-font-medium{{ end }} hx-transition-all hx-truncate">
+                {{ .Language.Label }}
+              </span>
+            </div>
+            
+            {{- if eq .Language.Lang $page.Language.Lang -}}
+              <span class="hx-text-primary-600 dark:hx-text-primary-400 hx-text-[10px] hx-shrink-0 ltr:hx-ml-2 rtl:hx-mr-2">
+                ●
+              </span>
+            {{- end -}}
+          </a>
+        </li>
+      {{ end -}}
+    </ul>
+  </div>
+{{- end -}}

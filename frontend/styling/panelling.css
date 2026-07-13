@@ -1,0 +1,77 @@
+@import url('styles.css');
+
+.panel-toggle {
+    background: var(--button-close-colour);
+    border: var(--button-border);
+    color: var(--button-text-colour);
+    cursor: pointer;
+    font-size: 14px;
+    padding: var(--button-padding);
+    border-radius: var(--button-border-radius);
+    z-index: 10;
+}
+.panel-toggle:hover { 
+    background-color: var(--button-close-hover-colour);
+    color: var(--button-text-colour);
+}
+.hidden-panel { display: none !important; }
+.panel-controls-wrapper {
+    position: absolute;
+    top: 10px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--wrapper-background);
+    padding: 8px 12px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    z-index: 1000;
+    cursor: grab;
+    touch-action: none;
+    user-select: none;
+    overflow: hidden;
+}
+.panel-controls-wrapper:active { cursor: grabbing; }
+.panel-controls-wrapper button {
+    background: var(--button-colour);
+    border: var(--button-border);
+    color: var(--button-text-colour);
+    padding: var(--button-padding);
+    border-radius: var(--button-border-radius);
+    cursor: pointer;
+    font-size: 12px;
+    white-space: nowrap;
+}
+.panel-controls-wrapper button:hover { background: var(--button-hover-colour); }
+.panel-controls-menu {
+    display: flex;
+    gap: 8px;
+    overflow: hidden;
+    max-width: 420px;
+    opacity: 1;
+    transform: translateX(0);
+    transition: max-width 0.28s ease, opacity 0.22s ease, transform 0.28s ease;
+    will-change: max-width, opacity, transform;
+}
+.panel-controls-wrapper.collapsed .panel-controls-menu {
+    max-width: 0;
+    opacity: 0;
+    transform: translateX(-10px);
+    pointer-events: none;
+}
+.panel-controls-wrapper button {
+    background: var(--button-colour);
+    border: var(--button-border);
+    color: var(--button-text-colour);
+    padding: var(--button-padding);
+    border-radius: var(--button-border-radius);
+    cursor: pointer;
+    font-size: 12px;
+    white-space: nowrap;
+    flex: 0 0 auto;
+}
+
+.panel-controls-wrapper button:hover {
+    background: var(--button-hover-colour);
+}
