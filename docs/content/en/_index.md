@@ -1,6 +1,5 @@
 ---
 date: '2026-06-12T15:54:45+01:00'
-draft: true
 title: 'LUMA'
 description: 'Local Unit Modulus Assignment. A modern high-performance rust tool for computed tomography derived material property assignment for finite element analysis.'
 layout: hextra-home
