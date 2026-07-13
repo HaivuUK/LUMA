@@ -116,6 +116,7 @@ jobs:
         run: |
           echo "Building the project..."
           hugo build \
+            --source docs \
             --gc \
             --minify \
             --baseURL "${{ steps.pages.outputs.base_url }}/" \
@@ -131,7 +132,7 @@ jobs:
         uses: actions/upload-pages-artifact@v5
         with:
           include-hidden-files: false
-          path: ./docs/public
+          path: docs/public
   deploy:
     runs-on: ubuntu-latest
     needs: build
