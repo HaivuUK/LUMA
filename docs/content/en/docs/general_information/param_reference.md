@@ -1,6 +1,5 @@
 ---
 date: '2026-06-12T15:54:46+01:00'
-draft: true
 title: 'Parameter File Reference'
 category: 'General Information'
 weight: 103

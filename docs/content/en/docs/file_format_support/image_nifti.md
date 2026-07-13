@@ -1,6 +1,5 @@
 ---
 date: '2026-06-12T15:54:46+01:00'
-draft: true
 title: 'NIfTI'
 category: 'Image Formats'
 weight: 202
