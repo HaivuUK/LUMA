@@ -13,9 +13,11 @@ weight: 400
 - Webview2 based visualisation is currently very memory hungry. [=> 0.2.2]
 - The _Z_ direction in views in CT views is not consistent. [=> 0.2.2]
 - You need a mesh and CT files to use the phantom calibration tool, when you should only need a CT. [0.3.0]
-- The slider is an annoyingly imprecise way to move through the CT scans and having a way to move one at a time would be good. [=> 0.2.0]
 
 ## Resolved
+
+### Fixed in 0.3.1
+- The slider is an annoyingly imprecise way to move through the CT scans and having a way to move one at a time would be good. [=> 0.2.0]
 
 ### Fixed in 0.2.4
 - Number of materials requested does not match the number in the file [0.2.3].

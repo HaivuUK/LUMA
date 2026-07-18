@@ -22,7 +22,75 @@ A packaged universal app is available in the [release](https://github.com/INSIGN
 
 #### Linux
 
-- Distributable build will be provided in the future.
+LUMA is set up to build `.rpm`, `.deb`, and `.appimage`.
+These will not automatically install to path and require some user setup to use in this way.
+
+##### AppImage
+
+Begin by making the AppImage an executable.
+You may want to change the name to make your life easier.
+
+```bash
+chmod +x luma.AppImage
+```
+
+###### User Install
+
+Add to your local bin folder.
+
+```bash
+mkdir -p ~/.local/bin
+```
+
+```bash
+mv luma.AppImage ~/.local/bin/LUMA
+```
+
+Add the directory to your PATH (if needed)
+Use nano or your preferred equivalent.
+
+```bash
+nano ~/.bashrc
+```
+
+And add the following to your file
+
+```bash
+export PATH="$HOME/.local/bin:$PATH"
+```
+
+```bash
+source ~/.bashrc
+```
+
+###### System Install
+
+Move the file to your bin folder and check it is executable.
+
+```bash
+sudo mv luma.AppImage /usr/local/bin/LUMA
+```
+
+```bash
+sudo chmod +x /usr/local/bin/LUMA
+```
+
+##### RPM and DEB
+
+These should not (I think? I do not use these formats) require extra setup to become available on PATH.
+
+###### DEB (Debian, Ubuntu, etc.)
+
+```bash
+sudo apt update
+sudo apt install ./luma.deb
+```
+
+###### RPM (Fedora, RHEL, CentOS, etc.)
+
+```bash
+sudo dnf install ./luma.rpm
+```
 
 ### Manual Build Commands
 

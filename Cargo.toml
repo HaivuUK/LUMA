@@ -1,6 +1,6 @@
 [package]
 name = "luma"
-version = "0.3.0"
+version = "0.3.1"
 edition = "2024"
 license = "AGPL-3.0-or-later"
 description = "Rust tool to assign bone material properties to finite element meshes from CT data"
@@ -24,7 +24,7 @@ toml = "1"
 log = "0.4"
 env_logger = "0.11"
 rayon = "1"
-vtkio = "0.6"
+vtkio = "0.7.0-rc2" # Using the rc to fix the lz4 vulnerbility
 dicom-object = "0.10"
 dicom-pixeldata = "0.10"
 regex = "1"
@@ -35,7 +35,7 @@ palette = "0.7"
 bytemuck = { version = "1", features = ["derive"] }
 tauri = { version = "2", features = ["macos-private-api"] }
 nifti = { version = "0.17", features = ["ndarray_volumes", "nalgebra_affine"] }
-nalgebra = "0.33"
+nalgebra = "0.33" # NIfTI package limits us to 0.33
 flate2 = "1"
 bzip2 = "0.6"
 

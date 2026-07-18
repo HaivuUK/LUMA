@@ -144,7 +144,7 @@ pub fn export_mesh_with_fields<P: AsRef<Path>>(
     };
 
     let vtk_output = Vtk {
-        version: Version::new(if is_vtu { (2, 0) } else { (4, 2) }),
+        version: Version::new(), // with v0.6.3 this was if is_vtu { (2, 0) } else { (4, 2) }),
         title: format!("Exported Mesh with LUMA {}", env!("CARGO_PKG_VERSION")),
         byte_order: if is_vtu {
             ByteOrder::native()

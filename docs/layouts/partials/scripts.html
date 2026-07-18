@@ -6,12 +6,13 @@
 {{- $jsSidebar := resources.Get "js/components/sidebar.js" -}}
 {{- $jsBackToTop := resources.Get "js/components/back-to-top.js" -}}
 {{- $jsFem := resources.Get "js/fem.js" -}}
+{{- $jsDownloader := resources.Get "js/downloader.js" -}}
 
 {{- $jsTheme := resources.Get "js/theme.js" | resources.ExecuteAsTemplate "theme.js" . -}}
 
 {{- $jsHomepage := resources.Get "js/custom/homepage.js" -}}
 
-{{- $scripts := slice $jsTheme $jsMenu $jsCodeCopy $jsTabs $jsLang $jsFileTree $jsSidebar $jsBackToTop $jsFem $jsHomepage | resources.Concat "js/main.js" -}}
+{{- $scripts := slice $jsTheme $jsMenu $jsCodeCopy $jsTabs $jsLang $jsFileTree $jsSidebar $jsBackToTop $jsFem $jsDownloader $jsHomepage | resources.Concat "js/main.js" -}}
 {{- if hugo.IsProduction -}}
   {{- $scripts = $scripts | minify | fingerprint -}}
 {{- end -}}

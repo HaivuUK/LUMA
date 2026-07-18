@@ -1,4 +1,4 @@
-name: Build Release
+name: Build
 
 on:
   workflow_dispatch: # Allows manual triggering from the GitHub UI
@@ -60,7 +60,7 @@ jobs:
         run: cargo binstall -y tauri-cli@^2
 
       - name: Build Tauri App
-        # Respects tauri.conf.json targets and hooks
+        # respect tauri.conf.json targets and hooks
         if: "!startsWith(matrix.os, 'macos')"
         run: cargo tauri build --target ${{ matrix.target }}
 
@@ -84,36 +84,3 @@ jobs:
             *.pkg
             *.tar.gz
           if-no-files-found: warn
-
-  release:
-    needs: build
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      # Parses the "version" key out of your tauri.conf.json file
-      - name: Extract version from tauri.conf.json
-        id: get_version
-        run: |
-          # If tauri.conf.json is located inside a src-tauri folder, adjust the path below to src-tauri/tauri.conf.json
-          VERSION=$(jq -r '.version' tauri.conf.json)
-          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
-          echo "Extracted Version: v$VERSION"
-
-      # Downloads all files compiled by the matrix above into a combined folder
-      - name: Download all build artifacts
-        uses: actions/download-artifact@v4
-        with:
-          path: ./downloaded-artifacts
-
-      # Packages everything cleanly into a Draft Release
-      - name: Create Draft Release
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: ${{ steps.get_version.outputs.VERSION }}
-          name: ${{ steps.get_version.outputs.VERSION }}
-          draft: true
-          prerelease: false
-          files: |
-            ./downloaded-artifacts/**/*
