@@ -76,13 +76,13 @@ jobs:
           name: luma-${{ matrix.name }}-artifacts
           path: |
             target/${{ matrix.target }}/release/bundle/dmg/*.dmg
-            target/${{ matrix.target }}/release/bundle/macos/*.app
             target/${{ matrix.target }}/release/bundle/msi/*.msi
             target/${{ matrix.target }}/release/bundle/nsis/*.exe
             target/${{ matrix.target }}/release/bundle/deb/*.deb
             target/${{ matrix.target }}/release/bundle/rpm/*.rpm
             target/${{ matrix.target }}/release/bundle/appimage/*.AppImage
-            **/*.pkg
+            *.pkg
+            *.tar.gz
           if-no-files-found: warn
 
   release:
@@ -112,7 +112,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.get_version.outputs.VERSION }}
-          name: Release ${{ steps.get_version.outputs.VERSION }}
+          name: ${{ steps.get_version.outputs.VERSION }}
           draft: true
           prerelease: false
           files: |

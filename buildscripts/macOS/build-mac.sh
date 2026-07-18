@@ -8,6 +8,16 @@ APP_NAME="luma"
 # Read target from the workflow argument, fallback to arm64 (Apple Silicon)
 TARGET=${1:-${TARGET:-aarch64-apple-darwin}}
 
+# Extract version from tauri.conf.json using jq
+VERSION=$(jq -r '.version' tauri.conf.json)
+
+# Determine the architecture suffix to match your other files
+if [[ "$TARGET" == *"aarch64"* ]]; then
+    ARCH="aarch64"
+else
+    ARCH="x64"
+fi
+
 echo "Compiling Tauri app bundle for $TARGET..."
 cargo tauri build --target "$TARGET"
 
@@ -26,6 +36,9 @@ if [ ! -d "$TARGET_DIR/$APP_NAME.app" ]; then
     echo "Error: App bundle not found at $TARGET_DIR/$APP_NAME.app"
     exit 1
 fi
+
+echo "Archiving .app bundle into compressed tarball..."
+tar -czf "${APP_NAME}_${VERSION}_${ARCH}.app.tar.gz" -C "$TARGET_DIR" "$APP_NAME.app"
 
 echo "Temporary payload root folder..."
 mkdir -p ./pkg_payload
@@ -53,16 +66,18 @@ EOF
 
 chmod +x installer/scripts/postinstall
 
-echo "Building non-relocatable .pkg installer..."
+PKG_NAME="${APP_NAME}_${VERSION}_${ARCH}_Installer.pkg"
+
+echo "Building non-relocatable installer: $PKG_NAME"
 pkgbuild \
   --root ./pkg_payload \
   --install-location "/Applications" \
   --component-plist components.plist \
   --scripts "installer/scripts" \
-  "${APP_NAME}_Installer.pkg"
+  "$PKG_NAME"
 
 echo "Cleaning up..."
 rm -rf ./pkg_payload
 rm components.plist
 
-echo "Fixed package built: ${APP_NAME}_Installer.pkg"
+echo "Fixed package built: ${APP_NAME}."
