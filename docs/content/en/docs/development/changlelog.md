@@ -5,9 +5,12 @@ category: 'Development'
 weight: 401
 ---
 
-### Release Candidate 9 (formats, python bindings, and fixes) [September 2026] [0.4.X]
-- TODO: Improve project structure and modularity, currently the code is quite monolithic and could be better organised into separate modules and files for better maintainability and readability.
-- TODO: Add support for additional mesh formats such as Neutral (.ntr) files, ANSYS Input (.inp) files, FEBIO files, and MARCs files.
+>[!Note]
+> Release Candidates are targeting v1.0.0 which will release once ready.
+
+### Release Candidate 9 (first public release, formats, python bindings, and fixes) [July - September 2026] [0.3.X - 0.4.X]
+- TODO: Improve project structure and modularity.
+- TODO: Add support for additional mesh formats such as Neutral (.ntr) files, ANSYS Input (.inp) files, and MARCs files.
 - TODO: Python bindings using PyO3 for drop-in replacement in existing Python workflows.
 
 #### [0.3.X]
@@ -21,6 +24,10 @@ weight: 401
 - TODO: Look at how the abaqus sets are defined and the part definitions, setting global as part name from mesh/mod.rs is probably not the best approach.
 - TODO: Improve the phantom calibration tool, currently it is a bit clunky and could be improved to be more user-friendly and intuitive.
 
+#### [0.3.1]
+
+- Change the sliders value to use an input (spinbox) so that slices can more precisely be stepped through.
+
 #### [0.3.0] First Public Release
 
 - Refactored the mesh code to make the abaqus file easier to manage.
@@ -31,7 +38,7 @@ weight: 401
 - Changed abaqus files to not set part names to global, for single part files.
 - Support FeBIO files.
 - Phantom Calibration tool built in to the GUI.
-- TODO: Clean up the codebase, remove unused code and dependencies, and improve documentation for better maintainability and usability.
+- Clean up the codebase, remove unused code and dependencies, and improve documentation for better maintainability and usability.
 
 ### Release Candidate 8 (enhancement, features, and fixes) [May/June 2026] [0.2.0 - 0.2.5]
 

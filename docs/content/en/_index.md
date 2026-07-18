@@ -61,7 +61,36 @@ layout: hextra-home
     {{< icon "github" >}} &nbsp; Code 
   </a>
 
-  <a class="not-prose hx-font-medium hx-cursor-pointer hx-select-none hx-w-64 hx-px-10 hx-py-4 hx-rounded-lg hx-text-center hx-text-black dark:hx-text-white hx-inline-block not-sure-button hx-transition-all hx-ease-in hx-duration-200" style="margin: 2px;" onclick="scrollDownSection();">Why use LUMA?</a>
+  <div class="hx-flex hx-flex-row hx-items-start hx-justify-center hx-gap-2 hx-flex-wrap">
+      <!-- Button 1 -->
+      <a class="not-prose hx-font-medium hx-cursor-pointer hx-select-none hx-h-12 hx-w-64 hx-px-10 hx-py-4 hx-rounded-lg hx-text-center hx-text-black dark:hx-text-white hx-flex hx-items-center hx-justify-center not-sure-button hx-transition-all hx-ease-in hx-duration-200" onclick="scrollDownSection();">
+          Why use LUMA?
+      </a>
+      <!-- Button 2 -->
+      <div class="hx-relative hx-inline-flex hx-flex-col hx-w-64">
+          <!-- Trigger Button -->
+          <a id="download-btn" 
+             class="not-prose hx-font-medium hx-cursor-pointer hx-select-none hx-h-12 hx-w-full hx-px-10 hx-py-4 hx-rounded-lg hx-text-center hx-text-black dark:hx-text-white not-sure-button hx-transition-all hx-ease-in hx-duration-200 hx-flex hx-items-center hx-justify-center" 
+             style="margin: 0; position: relative; z-index: 51;">
+             <span data-platform="windows" style="display: none;">{{< fab microsoft >}}</span>
+             <span data-platform="macos" style="display: none;">{{< fab apple >}}</span>
+             <span data-platform="linux" style="display: none;">{{< fab linux >}}</span>
+             &nbsp;
+             <span id="download-text">Loading...</span>
+          </a>
+          <!-- Dropdown Menu Wrapper -->
+          <div id="download-menu-wrapper" 
+               class="hx-absolute hx-left-0 hx-top-full hx-w-full hx-z-50 hx-transition-all hx-duration-300 hx-ease-out hx-opacity-0 hx-pointer-events-none" 
+               style="display: block;">
+              <!-- Menu -->
+              <div id="download-menu" 
+                   class="hx-rounded-b-lg hx-overflow-hidden not-sure-button"
+                   style="border-top: none; transition: background-color 0.2s;">
+                  <!-- Options injected here -->
+              </div>
+          </div>
+      </div>
+  </div>
 
 </section>
 
@@ -70,7 +99,7 @@ layout: hextra-home
   <div class="hover-cards-grid">
     <div class="hover-card">
       <h2 class="hx-text-2xl hx-font-bold">LUMA is Fast</h2>
-      <p class="hx-text-base">Built in rust LUMA is designed for high performance, ensuring quick and efficient processing of complex finite element models no matter how many materials you want. LUMA has also been tested to work with $\mu$CT data.</p>
+      <p class="hx-text-base">Built in rust LUMA is designed for high performance, ensuring quick and efficient processing of complex finite element models no matter how many materials you want. LUMA has also been tested to work with &mu;CT data.</p>
     </div>
     <div class="hover-card">
       <h2 class="hx-text-2xl hx-font-bold">Focused on User Experience</h2>

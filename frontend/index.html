@@ -163,7 +163,7 @@
             <div class="slice-controls">
                 <label for="z-slider">Z Slice:</label>
                 <input type="range" id="z-slider" min="0" max="100" value="50" onchange="updateSlice('z')">
-                <span id="z-value">0.0</span>
+                <input type="number" id="z-value" step="any" style="width: 80px;">
                 <button class="reset-button" id="z-reset" onclick="resetView('z')">Reset View</button>
             </div>
         </div>
@@ -175,7 +175,7 @@
             <div class="slice-controls">
                 <label for="y-slider">Y Slice:</label>
                 <input type="range" id="y-slider" min="0" max="100" value="50" onchange="updateSlice('y')">
-                <span id="y-value">0.0</span>
+                <input type="number" id="y-value" step="any" style="width: 80px;">
                 <button class="reset-button" id="y-reset" onclick="resetView('y')">Reset View</button>
             </div>
         </div>
@@ -187,7 +187,7 @@
             <div class="slice-controls">
                 <label for="x-slider">X Slice:</label>
                 <input type="range" id="x-slider" min="0" max="100" value="50" onchange="updateSlice('x')">
-                <span id="x-value">0.0</span>
+                <input type="number" id="x-value" step="any" style="width: 80px;">
                 <button class="reset-button" id="x-reset" onclick="resetView('x')">Reset View</button>
             </div>
         </div>
@@ -2627,38 +2627,137 @@
             
             document.getElementById('x-slider').addEventListener('input', (e) => {
                 updateSlice('x', false);
-                const xSliderVal = parseFloat(e.target.value) / 100;
+                const slider = e.target;
+                const maxSlices = parseFloat(slider.max) || 100;
+                const sliderVal = parseFloat(slider.value);
+                const percent = sliderVal / Math.max(1, maxSlices);
                 const bounds = getVisualizationBounds();
-                clipPlaneX.constant = -(bounds.min_x + (bounds.max_x - bounds.min_x) * xSliderVal);
+                const xPos = bounds.min_x + percent * (bounds.max_x - bounds.min_x);
+                const xValueInput = document.getElementById('x-value');
+                if (xValueInput) {
+                    xValueInput.value = xPos.toFixed(2);
+                }
+                clipPlaneX.constant = -xPos;
                 updateAllClippedMeshMaterials();
                 requestCtSliceUpdate('x');
             });
             document.getElementById('x-slider').addEventListener('change', () => {
                 requestCtSliceUpdate('x');
             });
+            document.getElementById('x-value').addEventListener('change', (e) => {
+                const xPos = parseFloat(e.target.value);
+                if (isNaN(xPos)) return;
+
+                const bounds = getVisualizationBounds();
+                if (!bounds) return;
+
+                const xSpan = bounds.max_x - bounds.min_x;
+                if (xSpan === 0) return;
+
+                const xSlider = document.getElementById('x-slider');
+                const maxSlices = parseFloat(xSlider.max) || 100;
+                const percent = (xPos - bounds.min_x) / xSpan;
+
+                let targetSliderValue = Math.round(percent * maxSlices);
+                targetSliderValue = Math.max(0, Math.min(maxSlices, targetSliderValue));
+
+                if (xSlider.value !== targetSliderValue.toString()) {
+                    xSlider.value = targetSliderValue;
+                    xSlider.dispatchEvent(new Event('input'));
+                } else {
+                    const exactX = bounds.min_x + (targetSliderValue / Math.max(1, maxSlices)) * xSpan;
+                    e.target.value = exactX.toFixed(2);
+                }
+            });
 
             document.getElementById('y-slider').addEventListener('input', (e) => {
                 updateSlice('y', false);
-                const ySliderVal = parseFloat(e.target.value) / 100;
+                const slider = e.target;
+                const maxSlices = parseFloat(slider.max) || 100;
+                const sliderVal = parseFloat(slider.value);
+                const percent = sliderVal / Math.max(1, maxSlices);
                 const bounds = getVisualizationBounds();
-                clipPlaneY.constant = -(bounds.min_y + (bounds.max_y - bounds.min_y) * ySliderVal);
+                const yPos = bounds.min_y + percent * (bounds.max_y - bounds.min_y);
+                const yValueInput = document.getElementById('y-value');
+                if (yValueInput) {
+                    yValueInput.value = yPos.toFixed(2);
+                }
+                clipPlaneY.constant = -yPos;
                 updateAllClippedMeshMaterials();
                 requestCtSliceUpdate('y');
             });
             document.getElementById('y-slider').addEventListener('change', () => {
                 requestCtSliceUpdate('y');
             });
+            document.getElementById('y-value').addEventListener('change', (e) => {
+                const yPos = parseFloat(e.target.value);
+                if (isNaN(yPos)) return;
+
+                const bounds = getVisualizationBounds();
+                if (!bounds) return;
+
+                const ySpan = bounds.max_y - bounds.min_y;
+                if (ySpan === 0) return;
+
+                const ySlider = document.getElementById('y-slider');
+                const maxSlices = parseFloat(ySlider.max) || 100;
+                const percent = (yPos - bounds.min_y) / ySpan;
+
+                let targetSliderValue = Math.round(percent * maxSlices);
+                targetSliderValue = Math.max(0, Math.min(maxSlices, targetSliderValue));
+
+                if (ySlider.value !== targetSliderValue.toString()) {
+                    ySlider.value = targetSliderValue;
+                    ySlider.dispatchEvent(new Event('input'));
+                } else {
+                    const exactY = bounds.min_y + (targetSliderValue / Math.max(1, maxSlices)) * ySpan;
+                    e.target.value = exactY.toFixed(2);
+                }
+            });
 
             document.getElementById('z-slider').addEventListener('input', (e) => {
                 updateSlice('z', false);
-                const zSliderVal = parseFloat(e.target.value) / 100;
+                const slider = e.target;
+                const maxSlices = parseFloat(slider.max) || 100;
+                const sliderVal = parseFloat(slider.value);
+                const percent = sliderVal / Math.max(1, maxSlices);
                 const bounds = getVisualizationBounds();
-                clipPlaneZ.constant = -(bounds.min_z + (bounds.max_z - bounds.min_z) * zSliderVal);
+                const zPos = bounds.min_z + percent * (bounds.max_z - bounds.min_z);
+                const zValueInput = document.getElementById('z-value');
+                if (zValueInput) {
+                    zValueInput.value = zPos.toFixed(2);
+                }
+                clipPlaneZ.constant = -zPos;
                 updateAllClippedMeshMaterials();
                 requestCtSliceUpdate('z');
             });
             document.getElementById('z-slider').addEventListener('change', () => {
                 requestCtSliceUpdate('z');
+            });
+            document.getElementById('z-value').addEventListener('change', (e) => {
+                const zPos = parseFloat(e.target.value);
+                if (isNaN(zPos)) return;
+
+                const bounds = getVisualizationBounds();
+                if (!bounds) return;
+
+                const zSpan = bounds.max_z - bounds.min_z;
+                if (zSpan === 0) return;
+
+                const zSlider = document.getElementById('z-slider');
+                const maxSlices = parseFloat(zSlider.max) || 100;
+                const percent = (zPos - bounds.min_z) / zSpan;
+
+                let targetSliderValue = Math.round(percent * maxSlices);
+                targetSliderValue = Math.max(0, Math.min(maxSlices, targetSliderValue));
+
+                if (zSlider.value !== targetSliderValue.toString()) {
+                    zSlider.value = targetSliderValue;
+                    zSlider.dispatchEvent(new Event('input'));
+                } else {
+                    const exactZ = bounds.min_z + (targetSliderValue / Math.max(1, maxSlices)) * zSpan;
+                    e.target.value = exactZ.toFixed(2);
+                }
             });
             
             // Reset button event listeners
@@ -3292,7 +3391,7 @@
                 if (slider) {
                     const maxIndex = parseInt(slider.max || '0', 10);
                     slider.value = String(Math.floor(maxIndex / 2));
-                    updateSlice(axis);
+                    slider.dispatchEvent(new Event('input'));
                 }
                 return;
             }
@@ -3310,29 +3409,29 @@
                 if (xSlider) {
                     const xIndex = parseInt(xSlider.value, 10) || 0;
                     const xPos = bounds.min_x + (xIndex / Math.max(1, sliceCounts[2] - 1)) * (bounds.max_x - bounds.min_x);
-                    document.getElementById('x-value').textContent = xPos.toFixed(2);
+                    document.getElementById('x-value').value = xPos.toFixed(2);
                 }
                 if (ySlider) {
                     const yIndex = parseInt(ySlider.value, 10) || 0;
                     const yPos = bounds.min_y + (yIndex / Math.max(1, sliceCounts[1] - 1)) * (bounds.max_y - bounds.min_y);
-                    document.getElementById('y-value').textContent = yPos.toFixed(2);
+                    document.getElementById('y-value').value = yPos.toFixed(2);
                 }
                 if (zSlider) {
                     const zIndex = parseInt(zSlider.value, 10) || 0;
                     const zPos = bounds.min_z + (zIndex / Math.max(1, sliceCounts[0] - 1)) * (bounds.max_z - bounds.min_z);
-                    document.getElementById('z-value').textContent = zPos.toFixed(2);
+                    document.getElementById('z-value').value = zPos.toFixed(2);
                 }
                 return;
             }
 
             const xPos = bounds.min_x + slicePositions.x * (bounds.max_x - bounds.min_x);
-            document.getElementById('x-value').textContent = xPos.toFixed(2);
+            document.getElementById('x-value').value = xPos.toFixed(2);
 
             const yPos = bounds.min_y + slicePositions.y * (bounds.max_y - bounds.min_y);
-            document.getElementById('y-value').textContent = yPos.toFixed(2);
+            document.getElementById('y-value').value = yPos.toFixed(2);
 
             const zPos = bounds.min_z + slicePositions.z * (bounds.max_z - bounds.min_z);
-            document.getElementById('z-value').textContent = zPos.toFixed(2);
+            document.getElementById('z-value').value = zPos.toFixed(2);
         }
 
         function setupDraggablePanel({

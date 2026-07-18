@@ -1,9 +1,6 @@
 name: Build Release
 
 on:
-  push:
-    tags:
-      - 'v*'
   workflow_dispatch: # Allows manual triggering from the GitHub UI
 
 permissions:
@@ -20,9 +17,9 @@ jobs:
             target: x86_64-unknown-linux-gnu
             name: linux-x86_64
           # macOS Apple Silicon (ARM64)
-          # - os: macos-14
-          #   target: aarch64-apple-darwin
-          #   name: macos-arm64
+          - os: macos-14
+            target: aarch64-apple-darwin
+            name: macos-arm64
           # Windows
           - os: windows-latest
             target: x86_64-pc-windows-msvc
@@ -70,8 +67,7 @@ jobs:
         if: startsWith(matrix.os, 'macos')
         run: |
           chmod +x buildscripts/macOS/build-mac.sh
-          # Passing the target triple and build path as env vars in case your script needs them
-          TARGET=${{ matrix.target }} ./buildscripts/macOS/build-mac.sh
+          ./buildscripts/macOS/build-mac.sh ${{ matrix.target }} 
 
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
@@ -85,7 +81,7 @@ jobs:
             target/${{ matrix.target }}/release/bundle/deb/*.deb
             target/${{ matrix.target }}/release/bundle/rpm/*.rpm
             target/${{ matrix.target }}/release/bundle/appimage/*.AppImage
-            # **/*.pkg
+            **/*.pkg
           if-no-files-found: warn
 
   release:
@@ -114,8 +110,8 @@ jobs:
       - name: Create Draft Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v${{ steps.get_version.outputs.VERSION }}
-          name: Release v${{ steps.get_version.outputs.VERSION }}
+          tag_name: ${{ steps.get_version.outputs.VERSION }}
+          name: Release ${{ steps.get_version.outputs.VERSION }}
           draft: true
           prerelease: false
           files: |
