@@ -12,7 +12,7 @@ authors:
     orcid: 'https://orcid.org/0000-0002-6213-0180'
 identifiers:
   - type: doi
-    value: 10.6084/m9.figshare.26425591
+    value: 10.5281/zenodo.21432058
 repository-code: 'https://github.com/HaivuUK/LUMA'
 url: 'https://HaivuUK.github.io/LUMA/'
 abstract: >-
@@ -28,5 +28,5 @@ keywords:
   - bone
   - rust
 license: AGPL-3.0-or-later
-version: 0.3.0
+version: 0.3.1
 date-released: '2026-07-13'
