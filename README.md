@@ -1,9 +1,7 @@
-<h1 align="center">
-  LUMA
-</h1>
-<p align="center">
-  Local Unit Modulus Assignment
-</p>
+<picture>
+  <source media="(prefers-color-scheme:dark)" srcset="lumasting.png">
+  <img alt="LUMA: Local Unit Modulus Assignment" src="lumasting.png">
+</picture>
 
 <p align="center">
   <a href="https://doi.org/10.5281/zenodo.21432058">
@@ -15,11 +13,14 @@
   <a href="https://insigneo.org/">
     <img src="https://img.shields.io/badge/-INSIGNEO-red.svg?colorA=ffffff&colorB=cf2020&logo=data%3Aimage%2Fpng%3Bbase64%2CiVBORw0KGgoAAAANSUhEUgAAAA4AAAAOCAMAAAAolt3jAAABC1BMVEUAAAD%2FAAC%2FAADMGhrRFxfSHh7VHBzJGxvTISHKICDMHx%2FOHR3RJCTTIyPOISHPICDMHR3NIyPNICDRISHQHx%2FQHx%2FOHx%2FQISHOICDQICDQHx%2FOHx%2FPISHQISHQICDOICDQISHOICDQICDPISHPICDQISHPICDPICDOHx%2FPISHPISHQISHPICDPISHPISHQICDOICDOICDPHx%2FPICDPICDOICDPICDPICDPICDPHx%2FPICDPICDQICDPICDPHx%2FQISHOICDPICDPICDPICDPICDPHx%2FMISHOICDPICDQICDPICDPISHPHx%2FPICDPICDPICDPICDPICDPICDOICDPHx%2FPICDPICDPICDPICDi8V76AAAAWHRSTlMAAgQKCxESExcYGRocHR8gIyRITVFSU1ZYYWJjZGZnaWxucXV5fH%2BAg4SFjI%2BUlZeYqKuusbK2ubrDxcbHycvMzdHU2Nrb4uLl5%2Bnq6%2Bzt7u%2F09vf7%2FP3%2B%2FHERCQAAAKVJREFUeAEdx%2BVCg2AAhtHHAANDMQRD7ECwO7DDjViM7b3%2FK9n4zr9Dxdk6jjc4s02si46kK7tMLGDuW%2Fq%2FvdxZlt5shh7VWhsGTqWvTVYll0q4PjMyy7VuYHQ7nIL98oVMAey183sI9EtNPpzXfz7BV8aHIpi%2Fe3ch1iuHysYxnFxHTDf1bD7xpMKBxa6Kk6WVKFXPY8BLZTQWMMYOHvK%2FZHcS6AOapR0V%2FpSSVQAAAABJRU5ErkJggg%3D%3D" alt="INSIGNEO">
   </a>
+</p>
+
+<p align="center">
   <a href="https://opensource.org/Licenses/AGPL-3.0">
     <img src="https://img.shields.io/badge/License-AGPL%203.0-blue.svg" alt="License GNU AGPL 3.0">
   </a>
   <img alt="GitHub all releases" src="https://img.shields.io/github/downloads/HaivuUK/LUMA/total">
-    <img alt="GitHub commits since latest release (by date) for a branch" src="https://img.shields.io/github/commits-since/HaivuUK/LUMA/latest">
+  <img alt="GitHub commits since latest release (by date) for a branch" src="https://img.shields.io/github/commits-since/HaivuUK/LUMA/latest">
 </p>
 
 <p align="center">
