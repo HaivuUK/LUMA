@@ -34,10 +34,6 @@ If applicable, add screenshots to help explain your problem.
  - Version [e.g. 0.3.1]
  - Rust Version [e.g. 1.97.1]
 
-**CI/CD Passing:**
-
-Do your changes build?
-
 **Additional context**
 
 Add any other context about the problem here.
