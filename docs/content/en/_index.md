@@ -11,7 +11,7 @@ layout: hextra-home
   </div>
 
   {{< hextra/hero-badge link="https://github.com/HaivuUK/luma" >}}<div class="hx-w-2 hx-h-2 hx-rounded-full hx-bg-primary-400"></div>
-  <span>Version 0.3.0 available now</span>
+  <span>Version 0.3.X available now</span>
   {{< icon name="arrow-circle-right" attributes="height=14" >}}{{< /hextra/hero-badge >}}
 
   <!-- <div class="hx-mt-6 hx-mb-4">

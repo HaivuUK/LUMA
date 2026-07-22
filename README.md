@@ -1,7 +1,9 @@
-<picture>
-  <source media="(prefers-color-scheme:dark)" srcset="lumasting.png">
-  <img alt="LUMA: Local Unit Modulus Assignment" src="lumasting.png">
-</picture>
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme:dark)" srcset="lumasting.png">
+    <img alt="LUMA: Local Unit Modulus Assignment" src="lumasting.png" class="center">
+  </picture>
+</p>
 
 <p align="center">
   <a href="https://doi.org/10.5281/zenodo.21432058">

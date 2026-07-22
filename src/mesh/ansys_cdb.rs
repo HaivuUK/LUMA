@@ -170,46 +170,18 @@ fn parse_node_line_cdb(line: &str) -> Option<Node> {
     // For CDB format, coordinates can be either concatenated or space-separated
     // Extract the ID
     let parts: Vec<&str> = line.split_whitespace().collect();
-    if parts.len() >= 3
-        && let Ok(id) = parts[0].parse::<u32>() {
-            // Try to extract coordinates from different possible formats
-            let coords_part = if parts.len() >= 6 {
-                // Case: fully space-separated format
-                // ["1601", "0", "0", "1.8907520790000E+000", "1.7355024250000E-001", "-7.9881002630000E+001"]
-                format!("{} {} {}", parts[3], parts[4], parts[5])
-            } else if parts.len() == 5 {
-                // Case: partially separated
-                // ["1", "0", "0", "1.8907520790000E+000", "1.7355024250000E-001-7.9881002630000E+001"]
-                format!("{} {}", parts[3], parts[4])
-            } else if parts.len() == 4 {
-                // Case: second and third coords concatenated
-                // ["1", "0", "0-4.7796970370000E+001", "6.6293449400000E+000-3.1539065550000E+002"]
-                format!("{} {}", parts[2], parts[3])
-            } else if parts.len() == 3 {
-                // Case: all coords concatenated after "0"
-                // ["73", "0", "0-4.0867755890000E+001-4.0189343690000E-001-3.2164248660000E+002"]
-                parts[2].to_string()
-            } else {
-                // Fallback: find position after "id 0 0" and extract the rest
-                let after_id_zeros = line.find(&format!("{} 0 0", id));
-                // https://rust-lang.github.io/rust-clippy/rust-1.97.0/index.html#question_mark
-                // let pos = after_id_zeros?;
-                // let start_pos = pos + format!("{} 0 0", id).len();
-                // line[start_pos..].to_string()
-                if let Some(pos) = after_id_zeros {
-                    let start_pos = pos + format!("{} 0 0", id).len();
-                    line[start_pos..].to_string()
-                } else {
-                    return None;
-                }
-            };
-            
-            // Extract coordinates using regex
-            if let Some((x, y, z)) = extract_three_coordinates(&coords_part) {
-                return Some(Node { id, x, y, z });
-            }
-        }
-    None
+
+    if parts.len() < 3 {
+        return None;
+    }
+
+    // coordinate extraction is already written so we use that cause that is sensible
+    // rather than writing if statements for every pattern
+    let id = parts[0].parse::<u32>().ok()?;
+    let rest = parts[1..].join(" ");
+    let (x, y, z) = extract_three_coordinates(&rest)?;
+
+    Some(Node {id, x, y, z})
 }
 
 fn extract_three_coordinates(coords_str: &str) -> Option<(f64, f64, f64)> {

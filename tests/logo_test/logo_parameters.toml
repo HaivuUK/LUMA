@@ -1,0 +1,33 @@
+# LUMA parameter file (TOML)
+
+[luma_options]
+integration = "E"
+integration_scheme = "dense"
+int_steps = 8
+grouping_density = "mean"
+back_calculation = true
+min_val = 0.000001
+poisson = 0.3
+num_materials = 334
+
+[ct_calibration_coefficients]
+rho_qct_a = -0.01222
+rho_qct_b = 0.0007079
+
+[ct_calibration_correction]
+calibration_correct = true
+num_ct_param = "single"
+rho_thresh1 = 0
+rho_thresh2 = 5
+rho_asha1 = 0.07895
+rho_ashb1 = 0.8772
+rho_asha2 = 0
+rho_ashb2 = 1
+rho_asha3 = 0
+rho_ashb3 = 1
+
+[modulus_calculation]
+num_e_param = "single"
+ea1 = 0
+eb1 = 14664
+ec1 = 1.49

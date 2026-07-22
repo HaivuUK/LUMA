@@ -24,9 +24,14 @@ weight: 401
 - TODO: Look at how the abaqus sets are defined and the part definitions, setting global as part name from mesh/mod.rs is probably not the best approach.
 - TODO: Improve the phantom calibration tool, currently it is a bit clunky and could be improved to be more user-friendly and intuitive.
 
+#### [0.3.2]
+
+- Fix fragility in ANSYS node reading that caused failures in unaccounted for string patterns.
+
 #### [0.3.1]
 
 - Change the sliders value to use an input (spinbox) so that slices can more precisely be stepped through.
+- Updated to the 0.7.0-rc2 of [vtkio](https://docs.rs/vtkio/0.7.0-rc2/vtkio/) to resolve possible lz4 vulnerabilities.
 
 #### [0.3.0] First Public Release
 
