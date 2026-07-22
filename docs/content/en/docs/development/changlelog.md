@@ -27,6 +27,7 @@ weight: 401
 #### [0.3.2]
 
 - Fix fragility in ANSYS node reading that caused failures in unaccounted for string patterns.
+- Fix handling of unsigned char and signed char scalar types in VTK files.
 
 #### [0.3.1]
 
