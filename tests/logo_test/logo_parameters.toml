@@ -8,7 +8,7 @@ grouping_density = "mean"
 back_calculation = true
 min_val = 0.000001
 poisson = 0.3
-num_materials = 334
+num_materials = 350
 
 [ct_calibration_coefficients]
 rho_qct_a = -0.01222
