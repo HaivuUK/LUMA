@@ -70,6 +70,8 @@ pub fn load_vtk(path: &str) -> Result<Volume> {
         "unsigned_int" | "uint" => { for chunk in payload.chunks_exact(4).take(npoints) { let be = u32::from_be_bytes([chunk[0],chunk[1],chunk[2],chunk[3]]); scalars.push(be as f32); } },
         "long" => { for chunk in payload.chunks_exact(8).take(npoints) { let be = i64::from_be_bytes([chunk[0],chunk[1],chunk[2],chunk[3],chunk[4],chunk[5],chunk[6],chunk[7]]); scalars.push((be as f64) as f32); } },
         "unsigned_long" | "ulong" => { for chunk in payload.chunks_exact(8).take(npoints) { let be = u64::from_be_bytes([chunk[0],chunk[1],chunk[2],chunk[3],chunk[4],chunk[5],chunk[6],chunk[7]]); scalars.push((be as f64) as f32); } },
+        "unsigned_char" | "uchar" => { for &b in payload.iter().take(npoints) { scalars.push(b as f32); } },
+        "char" | "signed_char" => { for &b in payload.iter().take(npoints) { scalars.push(b as i8 as f32); } },
         other => return Err(anyhow!(format!("Unsupported binary VTK scalar type '{other}'")))
     }
     if scalars.len() != npoints { return Err(anyhow!(format!("Parsed {} scalars, expected {}", scalars.len(), npoints))); }
