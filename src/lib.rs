@@ -349,6 +349,66 @@ pub fn visualise_mesh_and_ct_with_transformation(
 	visualise::web_viewer::start_mesh_ct_viewer_with_volume(&combined_data, &volume, &config)
 }
 
+/// Visualise CT volume only
+pub fn visualise_ct_only(
+	ct_path: &str,
+	vis_config: Option<visualise::VisualisationConfig>,
+) -> Result<()> {
+	let config = vis_config.unwrap_or_default();
+	
+	log_status("Loading CT volume...");
+	let volume = volume::load_volume(ct_path)?;
+	log_success("CT volume loaded successfully");
+	
+	let ct_bounds = visualise::CtBounds {
+		min_x: volume.x[0],
+		max_x: volume.x[volume.x.len() - 1],
+		min_y: volume.y[0],
+		max_y: volume.y[volume.y.len() - 1],
+		min_z: volume.z[0],
+		max_z: volume.z[volume.z.len() - 1],
+	};
+	
+	let mid_x = volume.x.len() / 2;
+	let mid_y = volume.y.len() / 2;
+	let mid_z = volume.z.len() / 2;
+	
+	let slices = [
+		visualise::extract_axial_slice(&volume, mid_z)?,
+		visualise::extract_sagittal_slice(&volume, mid_x)?,
+		visualise::extract_coronal_slice(&volume, mid_y)?,
+	];
+	
+	// Empty geometry load
+	let mesh_viz = visualise::MeshVisualisationData {
+		vertices: Vec::new(),
+		faces: Vec::new(),
+		colors: Vec::new(),
+		vertex_values: Vec::new(),
+		bounds: visualise::MeshBounds {
+			min_x: ct_bounds.min_x as f32,
+			max_x: ct_bounds.max_x as f32,
+			min_y: ct_bounds.min_y as f32,
+			max_y: ct_bounds.max_y as f32,
+			min_z: ct_bounds.min_z as f32,
+			max_z: ct_bounds.max_z as f32,
+		},
+		material_range: (0.0, 0.0),
+		histogram: None,
+	};
+	
+	let combined_data = visualise::MeshCtVisualisationData {
+		mesh: mesh_viz,
+		ct_axial: slices[0].clone(),
+		ct_sagittal: slices[1].clone(),
+		ct_coronal: slices[2].clone(),
+		ct_bounds,
+		total_slices: [volume.z.len(), volume.x.len(), volume.y.len()],
+	};
+	
+	visualise::web_viewer::start_mesh_ct_viewer_with_volume(&combined_data, &volume, &config)
+}
+
 /// Visualise a model that has already been processed with material assignments, without needing to re-run the assignment process
 pub fn visualise_assigned_model(
 	mesh_path: &str,
@@ -360,10 +420,6 @@ pub fn visualise_assigned_model(
 	log_success(&format!("Loaded mesh with {} parts and material assignments", mesh.parts.len()));
 
 	log_status("Generating 3D mesh visualisation...");
-	// Since we don't have exactly Params, we can optionally rebuild histogram view if wanted
-	// For now parameter passing might require custom handling or we just pass a default.
-	// Let's create a minimal Params or use the config. The visualiser needs `volume::HistogramData` or something if it was generated.
-	// We can just construct a visualisation.
-	// But visualise::generate_visualisation takes P: &Params. Wait, let's look at visualise mod.
+
 	visualise::generate_visualisation_from_assigned(&mesh, &per_part, &config)
 }

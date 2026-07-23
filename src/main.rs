@@ -25,7 +25,7 @@ struct Args {
 	ct: Option<String>,
 	/// Mesh (.inp, .cdb, .feb, .vtk, or .vtu)
 	#[arg(short, long)]
-	mesh: String,
+	mesh: Option<String>,
 	/// Enable 3D visualisation
 	#[arg(long = "visualise", num_args = 0..=1, value_name = "MODE")]
 	visualise: Option<Option<VizMode>>,
@@ -185,40 +185,6 @@ fn main() -> Result<()> {
 		Some(VizMode::Align) => {
 			let config = viz_config.unwrap();
 
-			let final_transformation = if transformation_override.is_some() {
-				transformation_override
-			} else if let Some(params_path) = &args.params {
-				match luma::params::Params::parse(params_path) {
-					Ok(params) => {
-						let has_params_transforms = params.mesh_translate_x.is_some()
-							|| params.mesh_translate_y.is_some()
-							|| params.mesh_translate_z.is_some()
-							|| params.mesh_rotate_x.is_some()
-							|| params.mesh_rotate_y.is_some()
-							|| params.mesh_rotate_z.is_some();
-
-						if has_params_transforms {
-							Some(luma::MeshTransformation {
-								translate_x: params.mesh_translate_x,
-								translate_y: params.mesh_translate_y,
-								translate_z: params.mesh_translate_z,
-								rotate_x: params.mesh_rotate_x,
-								rotate_y: params.mesh_rotate_y,
-								rotate_z: params.mesh_rotate_z,
-							})
-						} else {
-							None
-						}
-					}
-					Err(e) => {
-						pb.println(format!("Warning: Could not load parameter file for transformations: {}", e));
-						None
-					}
-				}
-			} else {
-				None
-			};
-
 			let ct_path = match &args.ct {
 				Some(path) => path,
 				None => {
@@ -228,21 +194,82 @@ fn main() -> Result<()> {
 				}
 			};
 
-			match luma::visualise_mesh_and_ct_with_transformation(&args.mesh, ct_path, Some(config), final_transformation) {
-				Ok(_) => {
-					pb.finish_with_message("Visualisation complete!");
-					Ok(())
+			match &args.mesh {
+				Some(mesh_path) => {
+					let final_transformation = if transformation_override.is_some() {
+						transformation_override
+					} else if let Some(params_path) = &args.params {
+						match luma::params::Params::parse(params_path) {
+							Ok(params) => {
+								let has_params_transforms = params.mesh_translate_x.is_some()
+									|| params.mesh_translate_y.is_some()
+									|| params.mesh_translate_z.is_some()
+									|| params.mesh_rotate_x.is_some()
+									|| params.mesh_rotate_y.is_some()
+									|| params.mesh_rotate_z.is_some();
+
+								if has_params_transforms {
+									Some(luma::MeshTransformation {
+										translate_x: params.mesh_translate_x,
+										translate_y: params.mesh_translate_y,
+										translate_z: params.mesh_translate_z,
+										rotate_x: params.mesh_rotate_x,
+										rotate_y: params.mesh_rotate_y,
+										rotate_z: params.mesh_rotate_z,
+									})
+								} else {
+									None
+								}
+							}
+							Err(e) => {
+								pb.println(format!("Warning: Could not load parameter file for transformations: {}", e));
+								None
+							}
+						}
+					} else {
+						None
+					};
+
+					match luma::visualise_mesh_and_ct_with_transformation(mesh_path, ct_path, Some(config), final_transformation) {
+						Ok(_) => {
+							pb.finish_with_message("Visualisation complete!");
+							Ok(())
+						}
+						Err(e) => {
+							pb.println(format!("Error: {e:?}"));
+							pb.finish_with_message("Failed!");
+							Err(e)
+						}
+					}
 				}
-				Err(e) => {
-					pb.println(format!("Error: {e:?}"));
-					pb.finish_with_message("Failed!");
-					Err(e)
+				None => {
+					// CT only view
+					match luma::visualise_ct_only(ct_path, Some(config)) {
+						Ok(_) => {
+							pb.finish_with_message("Visualisation complete!");
+							Ok(())
+						}
+						Err(e) => {
+							pb.println(format!("Error: {e:?}"));
+							pb.finish_with_message("Failed!");
+							Err(e)
+						}
+					}
 				}
 			}
 		}
 		Some(VizMode::Material) => {
 			let config = viz_config.unwrap();
-			match luma::visualise_assigned_model(&args.mesh, Some(config)) {
+			let mesh_path = match &args.mesh {
+				Some(path) => path,
+				None => {
+					pb.println("Error: --mesh is required for --visualise material");
+					pb.finish_with_message("Failed!");
+					return Err(anyhow::anyhow!("Missing required mesh data"));
+				}
+			};
+
+			match luma::visualise_assigned_model(mesh_path, Some(config)) {
 				Ok(_) => {
 					pb.finish_with_message("Visualisation complete!");
 					Ok(())
@@ -255,6 +282,15 @@ fn main() -> Result<()> {
 			}
 		}
 		Some(VizMode::Processed) => {
+			let mesh_path = match &args.mesh {
+				Some(path) => path,
+				None => {
+					pb.println("Error: --mesh is required for --visualise processed");
+					pb.finish_with_message("Failed!");
+					return Err(anyhow::anyhow!("Missing required mesh data"));
+				}
+			};
+
 			let ct_path = match &args.ct {
 				Some(path) => path,
 				None => {
@@ -273,7 +309,7 @@ fn main() -> Result<()> {
 				}
 			};
 
-			match luma::run_with_options(params_path, ct_path, &args.mesh, viz_config, transformation_override, histogram_overrides) {
+			match luma::run_with_options(params_path, ct_path, mesh_path, viz_config, transformation_override, histogram_overrides) {
 				Ok(_out) => Ok(()),
 				Err(e) => {
 					pb.println(format!("Error: {e:?}"));
@@ -301,7 +337,16 @@ fn main() -> Result<()> {
 				}
 			};
 
-			match luma::run_with_options(params_path, ct_path, &args.mesh, viz_config, transformation_override, histogram_overrides) {
+			let mesh_path = match &args.mesh {
+				Some(path) => path,
+				None => {
+					pb.println("Error: --mesh is required when not using --visualise");
+					pb.finish_with_message("Failed!");
+					return Err(anyhow::anyhow!("Missing required mesh data"));
+				}
+			};
+
+			match luma::run_with_options(params_path, ct_path, mesh_path, viz_config, transformation_override, histogram_overrides) {
 				Ok(_out) => Ok(()),
 				Err(e) => {
 					pb.println(format!("Error: {e:?}"));

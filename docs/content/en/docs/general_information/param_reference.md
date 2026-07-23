@@ -52,6 +52,7 @@ poisson = 0.3
 ## Primary Calibration (HU to QCT Density)
 ```toml
 # rhoQCT = rhoQCTa + (rhoQCTb * HU)
+# UNIT: g/cm^3
 [ct_calibration_coefficients]
 rho_qct_a = -0.01222      # Intercept coefficient
 rho_qct_b = 0.0007079     # Slope coefficient
