@@ -24,6 +24,11 @@ weight: 401
 - TODO: Look at how the abaqus sets are defined and the part definitions, setting global as part name from mesh/mod.rs is probably not the best approach.
 - TODO: Improve the phantom calibration tool, currently it is a bit clunky and could be improved to be more user-friendly and intuitive.
 
+#### [0.3.3]
+
+- Fix for the TOML output to be in the right units for LUMA material assignment.
+- TODO: Now only a CT is needed to load in to the mesh CT viewer, making phantom calibration easier.
+
 #### [0.3.2]
 
 - Fix fragility in ANSYS node reading that caused failures in unaccounted for string patterns.

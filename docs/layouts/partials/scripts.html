@@ -73,7 +73,7 @@
 {{- end -}}
 
 {{/* KaTex */}}
-{{- if .Page.Params.math -}}
+{{- if .Page.Store.Get "hasMath" -}}
   {{- $katexCSS := resources.Get "lib/katex/katex.min.css" | fingerprint -}}
   {{- $katexJS := resources.Get "lib/katex/katex.min.js" | fingerprint -}}
   {{- $mhchemJS := resources.Get "lib/katex/mhchem.min.js" | fingerprint -}}

@@ -409,8 +409,8 @@ export class CalibrationManager {
         tomlString += `[ct_calibration_coefficients]\n`;
 
         // slope and intercept
-        tomlString += `rho_qct_a = ${this.slope.toFixed(10)}\n`;
-        tomlString += `rho_qct_b = ${this.intercept.toFixed(10)}\n\n`;
+        tomlString += `rho_qct_a = ${this.slope.toFixed(10)/1000}\n`;
+        tomlString += `rho_qct_b = ${this.intercept.toFixed(10)/1000}\n\n`;
 
         // extra info
         const roiSummary = this.rois.map(r => `${r.name}(HU:${r.meanHU.toFixed(2)}->BMD:${r.targetBMD})`).join(', ');
