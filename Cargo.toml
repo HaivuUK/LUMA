@@ -1,6 +1,6 @@
 [package]
 name = "luma"
-version = "0.3.2"
+version = "0.3.3"
 edition = "2024"
 license = "AGPL-3.0-or-later"
 description = "Rust tool to assign bone material properties to finite element meshes from CT data"
