@@ -1,19 +1,37 @@
 const OWNER = 'HaivuUK';
 const REPO = 'LUMA';
 let cachedAssets = null;
+let tagVersion = '';
 
 const HOVER_COLOR = 'rgb(76 11 134 / 0.65)';
 
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async() => {
     const platform = getPlatform();
     const btn = document.getElementById('download-btn');
     const textSpan = document.getElementById('download-text');
+
+    if (!btn || !textSpan) return;
 
     if (btn) {
         const icon = btn.querySelector(`[data-platform="${platform}"]`);
         if (icon) icon.style.display = 'inline-flex';
 
-        textSpan.innerText = `Download`;
+        textSpan.textContent = 'Loading...';
+
+        try {
+            const response = await fetch(`https://api.github.com/repos/${OWNER}/${REPO}/releases/latest`);
+            if (response.ok) {
+                const data = await response.json();
+                cachedAssets = data.assets;
+                tagVersion = data.tag_name;
+                textSpan.innerText = `Download ${tagVersion}`;
+            } else {
+                textSpan.innerText = 'Download';
+            }
+        } catch (error) {
+            console.error('GitHub API fetch failed:', error);
+            textSpan.innerText = 'Download';
+        }
 
         btn.addEventListener('click', async (e) => {
             e.preventDefault();
@@ -28,7 +46,6 @@ async function handleDownloadFlow() {
     const textSpan = document.getElementById('download-text');
     const wrapper = document.getElementById('download-menu-wrapper');
     const menu = document.getElementById('download-menu');
-    const originalText = textSpan.innerText;
 
     if (wrapper.classList.contains('hx-opacity-100')) {
         closeMenu(wrapper, btn);
@@ -48,14 +65,20 @@ async function handleDownloadFlow() {
 
         const data = await response.json();
         cachedAssets = data.assets;
+        const tagVersion = data.tag_name;
+
+        if (tagVersion) {
+            textSpan.innerText = `Download ${tagVersion}`;
+        } else {
+            textSpan.innerText = 'Download';
+        }
 
         showLinuxMenu(platform, cachedAssets, menu, wrapper, btn);
         handleDirectDownload(platform, cachedAssets);
 
-        textSpan.innerText = originalText;
     } catch (error) {
         console.error(error);
-        textSpan.innerText = originalText;
+        textSpan.innerText = 'Download';
         alert('Could not connect to GitHub.');
     }
 }

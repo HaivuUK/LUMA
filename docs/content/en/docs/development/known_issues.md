@@ -12,10 +12,12 @@ weight: 400
 - SVG export of large models can cause OOM errors, need to find a better way to handle this. [=> 0.2.2]
 - Webview2 based visualisation is currently very memory hungry. [=> 0.2.2]
 - The _Z_ direction in views in CT views is not consistent. [=> 0.2.2]
-- You need a mesh and CT files to use the phantom calibration tool, when you should only need a CT. [0.3.0]
 - Large models lag out the mesh ct viewer as it trys to display all the elements of the model. Simplify the representation to fix this. [=> 0.2.2]
 
 ## Resolved
+
+### Fixed in 0.3.3
+- You need a mesh and CT files to use the phantom calibration tool, when you should only need a CT. [0.3.0]
 
 ### Fixed in 0.3.2
 - The logo cdb file hits a node and element read error. [=> 0.2.0]

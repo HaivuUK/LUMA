@@ -27,7 +27,7 @@ weight: 401
 #### [0.3.3]
 
 - Fix for the TOML output to be in the right units for LUMA material assignment.
-- TODO: Now only a CT is needed to load in to the mesh CT viewer, making phantom calibration easier.
+- Now only a CT is needed to load in to the mesh CT viewer, making phantom calibration easier.
 
 #### [0.3.2]
 
