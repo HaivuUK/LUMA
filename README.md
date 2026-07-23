@@ -79,6 +79,10 @@ LUMA is a rust tool, designed to assign bone material properties to finite eleme
 
 ## Installation
 
+>[!NOTE]
+> It is strongly recommended to use the pre-compiled binaries for your platform.
+> Building from source is targeted at developers who want to contribute to the project or need to modify the source code.
+
 For more information on installation, please see the [Installation Guide](https://HaivuUK.github.io/LUMA/docs/installation).
 
 ### Easy install
