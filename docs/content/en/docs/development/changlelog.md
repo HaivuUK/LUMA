@@ -24,6 +24,10 @@ weight: 401
 - TODO: Look at how the abaqus sets are defined and the part definitions, setting global as part name from mesh/mod.rs is probably not the best approach.
 - TODO: Improve the phantom calibration tool, currently it is a bit clunky and could be improved to be more user-friendly and intuitive.
 
+#### [0.3.4]
+
+- New ROIs now spawn in the centre of the CT planes, with a fall back to the old arbitrary fixed location.
+
 #### [0.3.3]
 
 - Fix for the TOML output to be in the right units for LUMA material assignment.
