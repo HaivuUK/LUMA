@@ -27,6 +27,7 @@ weight: 401
 #### [0.3.4]
 
 - New ROIs now spawn in the centre of the CT planes, with a fall back to the old arbitrary fixed location.
+- Corrected TOML ROI output to avoid dividing a string, which could break formatting in the output file.
 
 #### [0.3.3]
 
