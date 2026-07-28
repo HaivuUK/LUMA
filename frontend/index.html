@@ -1316,6 +1316,19 @@
             return meshData?.bounds;
         }
 
+        // centre the roi box on the ct planes
+        function getDefaultRoiBounds() {
+            const bounds = getVisualizationBounds();
+            const centerX = (bounds.min_x + bounds.max_x) / 2;
+            const centerY = (bounds.min_y + bounds.max_y) / 2;
+            const centerZ = (bounds.min_z + bounds.max_z) / 2;
+            return {
+                x: { start: Math.round(centerX - 10), end: Math.round(centerX + 10) },
+                y: { start: Math.round(centerY - 10), end: Math.round(centerY + 10) },
+                z: { start: Math.round(centerZ - 10), end: Math.round(centerZ + 10) }
+            };
+        }
+
         function initialiseMeshTransformControls (meshBounds, ctBounds) {
             if (!transformControlsWrapper) {
                 return;
@@ -2863,7 +2876,7 @@
                 controls[quadrantId] = arcballControls;
 
                 if (quadrantId === '3d') {
-                    calibrationManager = new CalibrationManager(scene, camera, renderer, arcballControls);
+                    calibrationManager = new CalibrationManager(scene, camera, renderer, arcballControls, getDefaultRoiBounds);
 
                     window.calibrationManager = calibrationManager;
                 }
