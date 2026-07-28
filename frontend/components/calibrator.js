@@ -3,11 +3,12 @@ import { TransformControls } from 'three/addons/controls/TransformControls.js';
 const invoke = window.__TAURI__.core.invoke;
 
 export class CalibrationManager {
-    constructor(scene, camera, renderer, arcballControls) {
+    constructor(scene, camera, renderer, arcballControls, getDefaultBounds = null) {
         this.scene = scene;
         this.camera = camera;
         this.renderer = renderer;
         this.arcballControls = arcballControls;
+        this.getDefaultBounds = getDefaultBounds;
 
         this.rois = [];
         this.nextId = 0;
@@ -64,14 +65,16 @@ export class CalibrationManager {
 
         const uiColour = colours[(this.nextId - 1) % colours.length];
 
+        const defaults = (!initialData?.x && this.getDefaultBounds) ? this.getDefaultBounds() : null; // get default bounds
+
         const roi = {
             id: id,
             name: initialData?.name || `ROI ${this.nextId}`,
             targetBMD: initialData?.targetBMD ?? 0.0,
             meanHU: 0.0,
-            x: initialData?.x || { start: 10, end: 20 },
-            y: initialData?.y || { start: 10, end: 20 },
-            z: initialData?.z || { start: 10, end: 20 },
+            x: initialData?.x || defaults?.x || { start: 10, end: 20 },
+            y: initialData?.y || defaults?.y || { start: 10, end: 20 },
+            z: initialData?.z || defaults?.z || { start: 10, end: 20 },
             mesh: null,
             colorHex: uiColour.hex,
             colorCss: uiColour.css
