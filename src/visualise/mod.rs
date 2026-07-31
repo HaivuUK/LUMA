@@ -34,15 +34,22 @@ impl Default for VisualisationConfig {
 /// Generate 3D visualisation of material distribution on processed mesh
 pub fn generate_visualisation(
     mesh: &Mesh,
+    mesh_path: &str,
     material_data: &[Vec<f64>],
     _params: &Params,
     config: &VisualisationConfig,
     histogram: Option<HistogramData>,
 ) -> Result<()> {
     crate::log_status("Generating 3D mesh visualisation...");
+
+    let mesh_filename = std::path::Path::new(mesh_path)
+        .file_stem()
+        .and_then(|name| name.to_str())
+        .unwrap_or("mesh")
+        .to_string();
     
     // Create mesh visualisation data with material assignments
-    let viz_data = mesh_visualiser::create_visualisation_data(mesh, material_data, config, histogram)?;
+    let viz_data = mesh_visualiser::create_visualisation_data(mesh, material_data, config, histogram, mesh_filename)?;
 
     // Start web viewer if requested
 
@@ -64,6 +71,7 @@ pub fn generate_visualisation(
 /// Generate 3D visualisation of material distribution on a model that already has material assignments
 pub fn generate_visualisation_from_assigned(
     mesh: &Mesh,
+    mesh_path: &str,
     material_data: &[Vec<f64>],
     config: &VisualisationConfig,
 ) -> Result<()> {
@@ -82,7 +90,13 @@ pub fn generate_visualisation_from_assigned(
         None
     };
 
-    let viz_data = mesh_visualiser::create_visualisation_data(mesh, material_data, config, histogram)?;
+    let mesh_filename = std::path::Path::new(mesh_path)
+        .file_stem()
+        .and_then(|name| name.to_str())
+        .unwrap_or("mesh")
+        .to_string();
+
+    let viz_data = mesh_visualiser::create_visualisation_data(mesh, material_data, config, histogram, mesh_filename)?;
 
     if config.auto_open {
         web_viewer::start_viewer(&viz_data, config)?;
@@ -118,8 +132,14 @@ pub fn visualise_mesh_with_ct(
         .map(|part| vec![1.0; part.elements.len()])
         .collect();
     
+    let mesh_filename = std::path::Path::new(mesh_path)
+        .file_stem()
+        .and_then(|name| name.to_str())
+        .unwrap_or("mesh")
+        .to_string();
+    
     // Create mesh visualisation data
-    let mesh_viz = mesh_visualiser::create_visualisation_data(&mesh, &material_data, config, None)?;
+    let mesh_viz = mesh_visualiser::create_visualisation_data(&mesh, &material_data, config, None, mesh_filename)?;
 
     // Extract CT slices at middle positions
     let ct_bounds = CtBounds {
@@ -292,6 +312,7 @@ pub struct MeshVisualisationData {
     pub bounds: MeshBounds,
     pub material_range: (f64, f64),
     pub histogram: Option<HistogramData>,
+    pub filename: String,
 }
 
 /// CT plane slice data for visualisation

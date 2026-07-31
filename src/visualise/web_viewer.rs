@@ -168,6 +168,7 @@ fn get_mesh_metadata(state: State<'_, AppState>) -> Result<serde_json::Value, St
         "bounds": data.bounds,
         "material_range": data.material_range,
         "histogram": data.histogram,
+        "filename": data.filename,
     }))
 }
 

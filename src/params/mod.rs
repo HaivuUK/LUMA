@@ -5,7 +5,7 @@ use serde::{Serialize, Deserialize};
 use serde::de::Deserializer;
 use log::warn;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Default, Debug, Clone, Serialize, Deserialize)]
 pub struct Params {
 	pub integration: Option<String>, // None means V1 behaviour
 	#[serde(alias = "gapValue")]

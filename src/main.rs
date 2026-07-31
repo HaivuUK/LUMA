@@ -269,7 +269,7 @@ fn main() -> Result<()> {
 				}
 			};
 
-			match luma::visualise_assigned_model(mesh_path, Some(config)) {
+			match luma::visualise_assigned_model(mesh_path, Some(config), histogram_overrides) {
 				Ok(_) => {
 					pb.finish_with_message("Visualisation complete!");
 					Ok(())

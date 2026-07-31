@@ -24,6 +24,12 @@ weight: 401
 - TODO: Look at how the abaqus sets are defined and the part definitions, setting global as part name from mesh/mod.rs is probably not the best approach.
 - TODO: Improve the phantom calibration tool, currently it is a bit clunky and could be improved to be more user-friendly and intuitive.
 
+#### [0.3.6]
+
+- Added the histogram export functionality to visualisation of already assigned models.
+- Unified timestamps on any exports from visualisation to use the same UTC timestamp format.
+- Mesh filenames are now parsed to the visualisation so when exporting images, the mesh filename is used in the export filename, making it easier to identify the source of the exported images.
+
 #### [0.3.5]
 
 - Fix the TOML output that had slope and intercept values swapped, which is a bit of a silly mistake to make and has been fixed.
