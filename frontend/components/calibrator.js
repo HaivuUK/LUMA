@@ -406,7 +406,7 @@ export class CalibrationManager {
             return;
         }
 
-        const timestamp = new Date().toISOString();
+        const timestamp = new Date().toISOString().split('.')[0] + 'Z';
 
         let tomlString = `# Calibration data generated on ${timestamp}\n`;
         tomlString += `[ct_calibration_coefficients]\n`;

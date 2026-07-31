@@ -3731,8 +3731,10 @@
 
             renderHistogram(meshData.histogram, tempCanvas, scale);
 
+            const timestamp = new Date().toISOString().split('.')[0] + 'Z';
             const link = document.createElement('a');
-            link.download = `histogram_${Date.now()}.png`;
+            const meshName = meshData?.filename || 'mesh';
+            link.download = `${meshName}_histogram_${timestamp}.png`;
             link.href = tempCanvas.toDataURL('image/png');
             link.click();
         }
@@ -3838,8 +3840,10 @@
                 const blob = new Blob(blobParts, { type: 'image/svg+xml;charset=utf-8' });
                 const url = URL.createObjectURL(blob);
                 const link = document.createElement('a');
+                const timestamp = new Date().toISOString().split('.')[0] + 'Z';
+                const meshName = meshData?.filename || 'mesh';
                 link.href = url;
-                link.download = `view_${quadrantId}_${Date.now()}.svg`;
+                link.download = `${meshName}_view_${quadrantId}_${timestamp}.svg`;
                 link.click();
                 URL.revokeObjectURL(url);
 
@@ -3899,8 +3903,10 @@
                 const dataURL = renderer.domElement.toDataURL('image/png');
 
                 const link = document.createElement('a');
+                const timestamp = new Date().toISOString().split('.')[0] + 'Z';
+                const meshName = meshData?.filename || 'mesh';
                 link.href = dataURL;
-                link.download = `view_${quadrantId}_highres_${Date.now()}.png`;
+                link.download = `${meshName}_view_${quadrantId}_highres_${timestamp}.png`;
                 document.body.appendChild(link);
                 link.click();
                 document.body.removeChild(link);
@@ -3952,10 +3958,11 @@
             ctx.fillText(currentColorRange.min.toFixed(3), 35, height - 25);
             ctx.fillText(COLOR_MAPS[currentColormapId].name, 10, height - 5);
 
-            const timestamp = Date.now();
+            const timestamp = new Date().toISOString().split('.')[0] + 'Z';
             if (format === 'png') {
                 const link = document.createElement('a');
-                link.download = `colorbar_${timestamp}.png`;
+                const meshName = meshData?.filename || 'mesh';
+                link.download = `${meshName}_colorbar_${timestamp}.png`;
                 link.href = canvas.toDataURL('image/png');
                 link.click();
             } else if (format === 'svg') {
@@ -3963,7 +3970,8 @@
                 const blob = new Blob([svgString], { type: 'image/svg+xml;charset=utf-8' });
                 const url = URL.createObjectURL(blob);
                 const link = document.createElement('a');
-                link.download = `colorbar_${timestamp}.svg`;
+                const meshName = meshData?.filename || 'mesh';
+                link.download = `${meshName}_colorbar_${timestamp}.svg`;
                 link.href = url;
                 link.click();
                 URL.revokeObjectURL(url);

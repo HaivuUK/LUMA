@@ -9,6 +9,7 @@ use anyhow::Result;
 use std::time::Instant;
 use std::sync::{Arc, atomic::{AtomicUsize}};
 use log::{debug, error};
+use crate::export::histogram::HistogramOverrides;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Step { ParseParams, LoadMesh, LoadVolume, Integrate, GroupAndExport }
@@ -224,7 +225,7 @@ pub fn run_with_options(
 		} else {
 			None
 		};
-		visualise::generate_visualisation(&mesh, &per_part, &p, &config, histogram_for_view)?;
+		visualise::generate_visualisation(&mesh, mesh_path, &per_part, &p, &config, histogram_for_view)?;
 		log_success("Visualisation complete!");
 	}
 	emit(Step::GroupAndExport, 2, 2);
@@ -310,9 +311,15 @@ pub fn visualise_mesh_and_ct_with_transformation(
 	let material_data: Vec<Vec<f64>> = mesh.parts.iter()
 		.map(|part| vec![1.0; part.elements.len()])
 		.collect();
+
+	let mesh_filename = std::path::Path::new(mesh_path)
+		.file_stem()
+		.and_then(|name| name.to_str())
+		.unwrap_or("mesh")
+		.to_string();
 		
 	// Create mesh visualisation
-	let mesh_viz = visualise::mesh_visualiser::create_visualisation_data(&mesh, &material_data, &config, None)?;
+	let mesh_viz = visualise::mesh_visualiser::create_visualisation_data(&mesh, &material_data, &config, None, mesh_filename)?;
 
 	// Create CT bounds and slices
 	let ct_bounds = visualise::CtBounds {
@@ -395,6 +402,7 @@ pub fn visualise_ct_only(
 		},
 		material_range: (0.0, 0.0),
 		histogram: None,
+		filename: "".to_string(),
 	};
 	
 	let combined_data = visualise::MeshCtVisualisationData {
@@ -410,10 +418,13 @@ pub fn visualise_ct_only(
 }
 
 /// Visualise a model that has already been processed with material assignments, without needing to re-run the assignment process
+/// Additionally allows for export of histogram
 pub fn visualise_assigned_model(
 	mesh_path: &str,
 	vis_config: Option<visualise::VisualisationConfig>,
+	histogram_overrides: Option<export::histogram::HistogramOverrides>
 ) -> Result<()> {
+	// load mesh and parse materials for visualisation
 	let config = vis_config.unwrap_or_default();
 	log_status("Loading processed mesh for visualisation...");
 	let (mesh, per_part) = mesh::load_mesh_with_materials(mesh_path)?;
@@ -421,5 +432,43 @@ pub fn visualise_assigned_model(
 
 	log_status("Generating 3D mesh visualisation...");
 
-	visualise::generate_visualisation_from_assigned(&mesh, &per_part, &config)
+	// build histogram for export if it is requested
+	let mut all_raw_moduli = Vec::new();
+	for (pi, part) in mesh.parts.iter().enumerate() {
+		if !part.ignore && pi < per_part.len() {
+			all_raw_moduli.extend(&per_part[pi]);
+		}
+	}
+
+	let histogram_data = if !all_raw_moduli.is_empty() {
+		Some(export::histogram::build_assigned_material_histogram(&all_raw_moduli))
+	} else {
+		None
+	};
+
+	if  let Some(overrides) = &histogram_overrides {
+		let default_params = params::Params {
+			histogram_export: false,
+			histogram_dir: None,
+			..Default::default()
+		};
+		let options = export::histogram::HistogramOptions::from_params(
+			&default_params,
+			Some(overrides.clone()),
+		);
+		if options.export && let Some(data) = &histogram_data {
+			let (csv_path, json_path) = export::histogram::write_histogram_outputs(
+				mesh_path,
+				options.export_dir.as_deref(),
+				data,
+			)?;
+			log_success(&format!(
+				"Histogram exported: {}, {}",
+				csv_path.display(),
+				json_path.display()
+			));
+		}
+	}
+
+	visualise::generate_visualisation_from_assigned(&mesh, mesh_path, &per_part, &config)
 }

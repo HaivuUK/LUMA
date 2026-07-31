@@ -12,6 +12,7 @@ pub fn create_visualisation_data(
     material_data: &[Vec<f64>],
     config: &VisualisationConfig,
     histogram: Option<HistogramData>,
+    filename: String,
 ) -> Result<MeshVisualisationData> {
     println!("Creating visualisation data...");
     
@@ -148,6 +149,7 @@ pub fn create_visualisation_data(
         bounds,
         material_range,
         histogram,
+        filename,
     })
 }
 
