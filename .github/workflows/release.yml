@@ -29,7 +29,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Install Linux Dependencies
         if: startsWith(matrix.os, 'ubuntu')
@@ -71,7 +71,7 @@ jobs:
           ./buildscripts/macOS/build-mac.sh ${{ matrix.target }} 
 
       - name: Upload Artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: luma-${{ matrix.name }}-artifacts
           path: |
@@ -90,7 +90,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       # Parses the "version" key out of your tauri.conf.json file
       - name: Extract version from tauri.conf.json
@@ -103,13 +103,13 @@ jobs:
 
       # Downloads all files compiled by the matrix above into a combined folder
       - name: Download all build artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           path: ./downloaded-artifacts
 
       # Packages everything cleanly into a Draft Release
       - name: Create Draft Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ steps.get_version.outputs.VERSION }}
           name: ${{ steps.get_version.outputs.VERSION }}
