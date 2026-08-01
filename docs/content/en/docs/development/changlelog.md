@@ -24,6 +24,10 @@ weight: 401
 - TODO: Look at how the abaqus sets are defined and the part definitions, setting global as part name from mesh/mod.rs is probably not the best approach.
 - TODO: Improve the phantom calibration tool, currently it is a bit clunky and could be improved to be more user-friendly and intuitive.
 
+#### [0.3.7]
+
+- Add cylindrical ROI and node based box ROI phantom calibration.
+
 #### [0.3.6]
 
 - Added the histogram export functionality to visualisation of already assigned models.
