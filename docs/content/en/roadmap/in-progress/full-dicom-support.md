@@ -11,5 +11,5 @@ Ensure full DICOM-RT support.
 
 ### Implementation Details
 
-DICOM support was improved in 0.2.2 to fix DICOMs having pixel spacing errors with the previous limited implimentation. 
+DICOM support was improved in 0.2.2 to fix DICOMs having pixel spacing errors with the previous limited implementation. 
 This needs to be further assessed to see if more improvements are required.

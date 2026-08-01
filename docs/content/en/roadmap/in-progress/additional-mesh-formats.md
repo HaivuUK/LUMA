@@ -8,9 +8,9 @@ time: "Unknown"
 ### Plan
 Neutral (.ntr) file support, ANSYS Input (.inp) file support, FEBIO file support, MARCs file support.
 
-### Implimentation
+### Implementation
 
 - [ ] Add support for Neutral (.ntr) files.
 - [ ] Add support for ANSYS Input (.inp) files.
-- [ ] Add support for FEBIO files. [added for 0.2.6]
+- [x] Add support for FEBIO files. [added for 0.2.6]
 - [ ] Add support for MARCs files.
