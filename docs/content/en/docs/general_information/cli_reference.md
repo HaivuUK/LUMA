@@ -5,6 +5,9 @@ category: 'General Information'
 weight: 103
 ---
 
+### Help Options
+- `-h, --help` - Show help message
+
 ### Core Options
 - `-p, --params <FILE>` - Parameter file (.toml)
 - `-c, --ct <PATH>` - CT data path (.vtk, .nii, .nrrd or DICOM directory)  
