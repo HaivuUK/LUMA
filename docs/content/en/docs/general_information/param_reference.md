@@ -2,7 +2,7 @@
 date: '2026-06-12T15:54:46+01:00'
 title: 'Parameter File Reference'
 category: 'General Information'
-weight: 103
+weight: 104
 ---
 
 LUMA uses TOML as the config file format since v0.2.0.

@@ -2,8 +2,16 @@
 date: '2026-06-12T15:54:46+01:00'
 title: 'Troubleshooting'
 category: 'General Information'
-weight: 105
+weight: 106
 ---
+
+## I click the LUMA icon and nothing happens or a terminal window opens and closes immediately
+
+- Luma is a command line tool and does not have a main GUI (_yet_).
+- This is the expected behaviour when clicking the icon. 
+- You need to run LUMA from a terminal or command prompt.
+
+- Please see the [Getting Started](getting_started.md) guide for instructions on how to run LUMA from the command line.
 
 # Common Issues
 
