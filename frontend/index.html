@@ -2553,24 +2553,6 @@
                         const dy = coords.physY - activeDrag.lastY;
                         const { roi, axisX, axisY, action } = activeDrag;
 
-                        // Helper to safely apply resize without ever causing negative bounds
-                        const safeApply = (axis, delta, isMin) => {
-                            const isStartSmaller = roi[axis].start <= roi[axis].end;
-                            let min = isStartSmaller ? roi[axis].start : roi[axis].end;
-                            let max = isStartSmaller ? roi[axis].end : roi[axis].start;
-
-                            if (isMin) {
-                                min += delta;
-                                if (min >= max - 1) min = max - 1; // Prevent crossing
-                            } else {
-                                max += delta;
-                                if (max <= min + 1) max = min + 1; // Prevent crossing
-                            }
-
-                            if (isStartSmaller) { roi[axis].start = min; roi[axis].end = max; }
-                            else { roi[axis].start = max; roi[axis].end = min; }
-                        };
-
                         if (action === 'move') {
                             applyAxisDelta(roi, axisX, dx);
                             applyAxisDelta(roi, axisY, dy);
