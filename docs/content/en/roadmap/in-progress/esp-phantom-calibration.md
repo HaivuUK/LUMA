@@ -19,6 +19,6 @@ So we can apply these same values to the phantom calibration process and do the 
 ### Implementation
 
 - [x] Provide basic box based ROI based phantom calibration that saves numbers to a TOML file. [added for 0.3.0]
-- [ ] Provide Cylindrical ROI based phantom calibration that saves numbers to a TOML file.
-- [ ] Provide a node based box ROI based phantom calibration that saves numbers to a TOML file.
+- [x] Provide Cylindrical ROI based phantom calibration that saves numbers to a TOML file. [added for 0.3.7]
+- [x] Provide a node based box ROI based phantom calibration that saves numbers to a TOML file. [added for 0.3.7]
 - [ ] Look at improving the accuracy and user-friendliness.
