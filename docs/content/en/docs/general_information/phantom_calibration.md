@@ -2,7 +2,7 @@
 date: '2026-06-12T15:54:46+01:00'
 title: 'Phantom Calibration'
 category: 'General Information'
-weight: 108
+weight: 109
 ---
 
 LUMA supports phantom or phantomless manual calibration through its visualisation GUI.

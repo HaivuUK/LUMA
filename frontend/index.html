@@ -193,7 +193,7 @@
         </div>
     </div>
 
-    <div class="transform-controls" id="transform-panel" data-view-mode="mesh_ct">
+    <div class="transform-controls hidden-panel" id="transform-panel" data-view-mode="mesh_ct">
         <div class="transform-header">
             <span>Mesh transform</span>
             <button id="mesh-transform-reset" type="button" class="reset-button">Reset</button>
@@ -270,24 +270,59 @@
                     <input type="number" class="roi-bmd" step="0.1" placeholder="mg/cm3">
                 </div>
             </div>
+            <select class="roi-shape-select" title="ROI Shape">
+                <option value="box">Box</option>
+                <option value="cylinder">Cylinder</option>
+                <option value="nodal">Nodal</option>
+            </select>
             <div class="roi-row-bottom">
-                <div class="range-group">
-                    <label>X:</label>
-                    <input type="number" class="slice-start-x" title="Start X">
-                    <label>to</label>
-                    <input type="number" class="slice-end-x" title="End X">
+                <div class="roi-box-fields">
+                    <div class="range-group">
+                        <label>X:</label>
+                        <input type="number" class="slice-start-x" title="Start X">
+                        <label>to</label>
+                        <input type="number" class="slice-end-x" title="End X">
+                    </div>
+                    <div class="range-group">
+                        <label>Y:</label>
+                        <input type="number" class="slice-start-y" title="Start Y">
+                        <label>to</label>
+                        <input type="number" class="slice-end-y" title="End Y">
+                    </div>
+                    <div class="range-group">
+                        <label>Z:</label>
+                        <input type="number" class="slice-start-z" title="Start Z">
+                        <label>to</label>
+                        <input type="number" class="slice-end-z" title="End Z">
+                    </div>
                 </div>
-                <div class="range-group">
-                    <label>Y:</label>
-                    <input type="number" class="slice-start-y" title="Start Y">
-                    <label>to</label>
-                    <input type="number" class="slice-end-y" title="End Y">
+                <div class="roi-cylinder-fields" hidden>
+                    <div class="range-group">
+                        <label>X/Y:</label>
+                        <input type="number" class="cyl-cx" title="Center X">
+                        <input type="number" class="cyl-cy" title="Center Y">
+                    </div>
+                    <div class="range-group">
+                        <label>Radius:</label>
+                        <input type="number" class="cyl-radius" title="Radius">
+                    </div>
+                    <div class="range-group">
+                        <label>Z:</label>
+                        <input type="number" class="cyl-start-z" title="Start Z">
+                        <label>to</label>
+                        <input type="number" class="cyl-end-z" title="End Z">
+                    </div>
                 </div>
-                <div class="range-group">
-                    <label>Z:</label>
-                    <input type="number" class="slice-start-z" title="Start Z">
-                    <label>to</label>
-                    <input type="number" class="slice-end-z" title="End Z">
+                <div class="roi-nodal-fields" hidden>
+                    <div class="range-group">
+                        <label>Z:</label>
+                        <input type="number" class="nodal-start-z" title="Start Z">
+                        <label>to</label>
+                        <input type="number" class="nodal-end-z" title="End Z">
+                    </div>
+                    <p class="nodal-hint">
+                        Nodes: <span class="nodal-node-count">0</span>
+                    </p>
                 </div>
                 <div class="mean-hu-display">
                     <label>Mean HU:</label>
@@ -2006,7 +2041,7 @@
         }
 
         function drawCalibrationRoiOverlay(ctx, plane, offsetX, offsetY, drawWidth, drawHeight, sliceData) { 
-            // 1. Better error logging to see exactly why it's failing in the console
+            // error logging to see exactly why it's failing in the console
             let manager = null;
             if (typeof calibrationManager !== 'undefined') {
                 manager = calibrationManager;
@@ -2042,38 +2077,67 @@
             if (plane === 'sagittal') { currentPhyicalPos = bounds.min_x + (bounds.max_x - bounds.min_x) * sliderVal; }  
             if (plane === 'coronal') { currentPhyicalPos = bounds.min_y + (bounds.max_y - bounds.min_y) * sliderVal; } 
             
-            // 2. Add a tolerance so thin boxes aren't skipped by precise float slider values
-            const tolerance = 2.0; 
+            // tolerance so thin boxes aren't skipped by precise float slider values
+            const tolerance = 2.0;
+
+            function nodalBounds(roi) {
+                const xs = roi.nodes.map(node => node.x);
+                const ys = roi.nodes.map(node => node.y);
+                return {
+                    minX: Math.min(...xs), maxX: Math.max(...xs),
+                    minY: Math.min(...ys), maxY: Math.max(...ys)
+                };
+            }
+
+            function getROIXYZBounds(roi) {
+                const shape = roi.shape || 'box';
+                if (shape === 'cylinder') {
+                    return {
+                        x: { start: roi.cx - roi.radius, end: roi.cx + roi.radius },
+                        y: { start: roi.cy - roi.radius, end: roi.cy + roi.radius },
+                        z: roi.z
+                    };
+                }
+                if (shape === 'nodal') {
+                    const b = nodalBounds(roi);
+                    return {
+                        x: { start: b.minX, end: b.maxX },
+                        y: { start: b.minY, end: b.maxY },
+                        z: roi.z
+                    };
+                }
+                return { x: roi.x, y: roi.y, z: roi.z };
+            }
 
             const axisRanges = { 
                 axial: { 
-                    crosses: roi => currentPhyicalPos >= Math.min(roi.z.start, roi.z.end) - tolerance && currentPhyicalPos <= Math.max(roi.z.start, roi.z.end) + tolerance, 
-                    xStart: roi => roi.x.start, 
-                    xEnd: roi => roi.x.end, 
-                    yStart: roi => roi.y.start, 
-                    yEnd: roi => roi.y.end, 
+                    crosses: roi => { const b = getROIXYZBounds(roi); return currentPhyicalPos >= Math.min(b.z.start, b.z.end) - tolerance && currentPhyicalPos <= Math.max(b.z.start, b.z.end) + tolerance; },
+                    xStart: roi => getROIXYZBounds(roi).x.start,
+                    xEnd: roi => getROIXYZBounds(roi).x.end,
+                    yStart: roi => getROIXYZBounds(roi).y.start,
+                    yEnd: roi => getROIXYZBounds(roi).y.end,
                     minX: bounds.min_x, 
                     maxX: bounds.max_x, 
                     minY: bounds.min_y, 
                     maxY: bounds.max_y 
                 }, 
                 sagittal: { 
-                    crosses: roi => currentPhyicalPos >= Math.min(roi.x.start, roi.x.end) - tolerance && currentPhyicalPos <= Math.max(roi.x.start, roi.x.end) + tolerance, 
-                    xStart: roi => roi.z.start, 
-                    xEnd: roi => roi.z.end, 
-                    yStart: roi => roi.y.start, 
-                    yEnd: roi => roi.y.end, 
+                    crosses: roi => { const b = getROIXYZBounds(roi); return currentPhyicalPos >= Math.min(b.x.start, b.x.end) - tolerance && currentPhyicalPos <= Math.max(b.x.start, b.x.end) + tolerance; },
+                    xStart: roi => getROIXYZBounds(roi).z.start,
+                    xEnd: roi => getROIXYZBounds(roi).z.end,
+                    yStart: roi => getROIXYZBounds(roi).y.start,
+                    yEnd: roi => getROIXYZBounds(roi).y.end,
                     minX: bounds.min_z, 
                     maxX: bounds.max_z, 
                     minY: bounds.min_y, 
                     maxY: bounds.max_y 
                 }, 
                 coronal: { 
-                    crosses: roi => currentPhyicalPos >= Math.min(roi.y.start, roi.y.end) - tolerance && currentPhyicalPos <= Math.max(roi.y.start, roi.y.end) + tolerance, 
-                    xStart: roi => roi.x.start, 
-                    xEnd: roi => roi.x.end, 
-                    yStart: roi => roi.z.start, 
-                    yEnd: roi => roi.z.end, 
+                    crosses: roi => { const b = getROIXYZBounds(roi); return currentPhyicalPos >= Math.min(b.y.start, b.y.end) - tolerance && currentPhyicalPos <= Math.max(b.y.start, b.y.end) + tolerance; },
+                    xStart: roi => getROIXYZBounds(roi).x.start,
+                    xEnd: roi => getROIXYZBounds(roi).x.end,
+                    yStart: roi => getROIXYZBounds(roi).z.start,
+                    yEnd: roi => getROIXYZBounds(roi).z.end,
                     minX: bounds.min_x, 
                     maxX: bounds.max_x, 
                     minY: bounds.min_z, 
@@ -2084,41 +2148,125 @@
             const config = axisRanges[plane]; 
             if (!config) { 
                 return; 
-            } 
+            }
 
-            ctx.save(); 
-            // 3. Made the lines much brighter and thicker so they don't blend into the CT scan
-            ctx.lineWidth = 3; 
+            function drawNormalisedRect(x0, x1, y0, y1) {
+                const lo_x = Math.min(x0, x1), hi_x = Math.max(x0, x1);
+                const lo_y = Math.min(y0, y1), hi_y = Math.max(y0, y1);
 
-            manager.rois.forEach(roi => { 
-                if (!config.crosses(roi)) { 
-                    return; 
-                } 
+                const normX0 = (lo_x - config.minX) / (config.maxX - config.minX);
+                const normX1 = (hi_x - config.minX) / (config.maxX - config.minX);
+                const normY0 = (lo_y - config.minY) / (config.maxY - config.minY);
+                const normY1 = (hi_y - config.minY) / (config.maxY - config.minY);
 
-                const x0 = Math.min(config.xStart(roi), config.xEnd(roi)); 
-                const x1 = Math.max(config.xStart(roi), config.xEnd(roi)); 
-                const y0 = Math.min(config.yStart(roi), config.yEnd(roi)); 
-                const y1 = Math.max(config.yStart(roi), config.yEnd(roi)); 
+                const left = offsetX + normX0 * drawWidth;
+                const top = offsetY + normY0 * drawHeight;
 
-                const normX0 = (x0 - config.minX) / (config.maxX - config.minX); 
-                const normX1 = (x1 - config.minX) / (config.maxX - config.minX); 
-                const normY0 = (y0 - config.minY) / (config.maxY - config.minY); 
-                const normY1 = (y1 - config.minY) / (config.maxY - config.minY); 
-
-                const left = offsetX + normX0 * drawWidth; 
-                const top = offsetY + normY0 * drawHeight; 
-                
-                // 4. Enforce a minimum rendered size of 4 pixels so tiny ROIs are always visible
-                const width = Math.max(4, (normX1 - normX0) * drawWidth); 
+                const width = Math.max(4, (normX1 - normX0) * drawWidth);
                 const height = Math.max(4, (normY1 - normY0) * drawHeight);
-
-                ctx.strokeStyle = roi.colorCss || '#00ffcc';
-                ctx.fillStyle = roi.colorCss || '#00ffcc';
 
                 ctx.globalAlpha = 0.25;
                 ctx.fillRect(left, top, width, height);
                 ctx.globalAlpha = 0.8;
-                ctx.strokeRect(left, top, width, height); 
+                ctx.strokeRect(left, top, width, height);
+            }
+
+            function drawCylinderAxial(roi) {
+                const normCx = (roi.cx - config.minX) / (config.maxX - config.minX);
+                const normCy = (roi.cy - config.minY) / (config.maxY - config.minY);
+                const rX = (roi.radius / (config.maxX - config.minX)) * drawWidth;
+                const rY = (roi.radius / (config.maxY - config.minY)) * drawHeight;
+
+                const centerX = offsetX + normCx * drawWidth;
+                const centerY = offsetY + normCy * drawHeight;
+
+                ctx.beginPath();
+                ctx.ellipse(centerX, centerY, Math.max(2, rX), Math.max(2, rY), 0, 0, 2 * Math.PI);
+                ctx.globalAlpha = 0.25;
+                ctx.fill();
+                ctx.globalAlpha = 0.8;
+                ctx.stroke();
+            }
+
+            function drawCylinderChord(roi, plane) {
+                const centerAxisVal = plane === 'sagittal' ? roi.cx : roi.cy;
+                const dist = currentPhyicalPos - centerAxisVal;
+                const halfWidth = Math.sqrt(Math.max(0, roi.radius * roi.radius - dist * dist));
+
+                const zLo = Math.min(roi.z.start, roi.z.end);
+                const zHi = Math.max(roi.z.start, roi.z.end);
+                const chordCenter = plane === 'sagittal' ? roi.cy : roi.cx;
+
+                if (plane === 'sagittal') {
+                    drawNormalisedRect(zLo, zHi, chordCenter - halfWidth, chordCenter + halfWidth);
+                } else {
+                    drawNormalisedRect(chordCenter - halfWidth, chordCenter + halfWidth, zLo, zHi);
+                }
+            }
+
+            function drawNodalAxial(roi) {
+                if (!roi.nodes || roi.nodes.length < 3) return;
+
+                ctx.beginPath();
+                roi.nodes.forEach((node, i) => {
+                    const normX = (node.x - config.minX) / (config.maxX - config.minX);
+                    const normY = (node.y - config.minY) / (config.maxY - config.minY);
+                    const x = offsetX + normX * drawWidth;
+                    const y = offsetY + normY * drawHeight;
+
+                    if (i === 0) {
+                        ctx.moveTo(x, y);
+                    } else {
+                        ctx.lineTo(x, y);
+                    }
+                });
+                ctx.closePath();
+                ctx.globalAlpha = 0.25;
+                ctx.fill();
+                ctx.globalAlpha = 0.8;
+                ctx.stroke();
+
+                roi.nodes.forEach(node => {
+                    const normX = (node.x - config.minX) / (config.maxX - config.minX);
+                    const normY = (node.y - config.minY) / (config.maxY - config.minY);
+                    const x = offsetX + normX * drawWidth;
+                    const y = offsetY + normY * drawHeight;
+                    ctx.globalAlpha = 1;
+                    ctx.beginPath();
+                    ctx.arc(x, y, 4, 0, Math.PI * 2);
+                    ctx.fillStyle = '#ffffff';
+                    ctx.fill();
+                    ctx.strokeStyle = roi.colorCss || '#00ffcc';
+                    ctx.stroke();
+                });
+            }
+
+            ctx.save();
+            ctx.lineWidth = 2;
+
+            manager.rois.forEach(roi => { 
+                if (!config.crosses(roi)) { 
+                    return; 
+                }
+
+                const shape = roi.shape || 'box';
+                ctx.strokeStyle = roi.colorCss || '#00ffcc';
+                ctx.fillStyle = roi.colorCss || '#00ffcc';
+
+                if (shape === 'cylinder' && plane === 'axial') {
+                    drawCylinderAxial(roi);
+                } else if (shape === 'cylinder') {
+                    drawCylinderChord(roi, plane);
+                } else if (shape === 'nodal' && plane === 'axial') {
+                    drawNodalAxial(roi);
+                } else {
+                    drawNormalisedRect(
+                        config.xStart(roi),
+                        config.xEnd(roi),
+                        config.yStart(roi),
+                        config.yEnd(roi)
+                    )
+                }
             }); 
 
             ctx.restore(); 
@@ -2132,6 +2280,7 @@
             ];
 
             let activeDrag = null;
+            let activeNodeDrag = null;
 
             function getPhysCoords(e, plane, canvas) {
                 if (!window.ctRenderMetrics) return null;
@@ -2165,6 +2314,147 @@
                 return { physX, physY, axisX, axisY, tolX, tolY };
             }
 
+            function getAxisRange(roi, axis) {
+                if (axis === 'z') return roi.z;
+
+                if (roi.shape === 'cylinder') {
+                    return axis === 'x'
+                        ? { start: roi.cx - roi.radius, end: roi.cx + roi.radius }
+                        : { start: roi.cy - roi.radius, end: roi.cy + roi.radius };
+                }
+                if (roi.shape === 'nodal') {
+                    const vals = roi.nodes.map(node => node[axis]);
+                    return { start: Math.min(...vals), end: Math.max(...vals) };
+                }
+                return roi[axis];
+            }
+
+            function applyAxisDelta(roi, axis, delta) {
+                if (axis === 'z') { roi.z.start += delta; roi.z.end += delta; return; }
+
+                if (roi.shape === 'cylinder') {
+                    if (axis === 'x') roi.cx += delta; else roi.cy += delta;
+                    return;
+                }
+                if (roi.shape === 'nodal') {
+                    roi.nodes.forEach(node => { node[axis] += delta; });
+                    return;
+                }
+                roi[axis].start += delta;
+                roi[axis].end += delta;
+            }
+
+            function safeApplyRange(range, delta, isMin) {
+                const isStartSmaller = range.start <= range.end;
+                let min = isStartSmaller ? range.start : range.end;
+                let max = isStartSmaller ? range.end : range.start;
+
+                if (isMin) {
+                    min += delta;
+                    if (min >= max - 1) min = max - 1;
+                } else {
+                    max += delta;
+                    if (max <= min + 1) max = min + 1;
+                }
+
+                return isStartSmaller ? { start: min, end: max } : { start: max, end: min };
+            }
+
+            function writeAxisRange(roi, axis, range) {
+                if (axis === 'z') { roi.z.start = range.start; roi.z.end = range.end; return; }
+
+                if (roi.shape === 'cylinder') {
+                    const lo = Math.min(range.start, range.end);
+                    const hi = Math.max(range.start, range.end);
+                    roi.radius = Math.max(0.5, (hi - lo) / 2);
+                    const center = (lo + hi) / 2;
+                    if (axis === 'x') roi.cx = center; else roi.cy = center;
+                    return;
+                }
+
+                roi[axis].start = range.start;
+                roi[axis].end = range.end;
+            }
+
+            function polygonNodeHitTest(roi, physX, physY, tolX, tolY) {
+                for (let i = 0; i < roi.nodes.length; i++) {
+                    const node = roi.nodes[i];
+                    if (Math.abs(node.x - physX) <= tolX && Math.abs(node.y - physY) <= tolY) return i;
+                }
+                return -1;
+            }
+
+            function pointInPolygon(nodes, x, y) {
+                let inside = false;
+                for (let i = 0, j = nodes.length - 1; i < nodes.length; j = i++) {
+                    const xi = nodes[i].x, yi = nodes[i].y;
+                    const xj = nodes[j].x, yj = nodes[j].y;
+                    const intersect = ((yi > y) !== (yj > y)) && (x < (xj - xi) * (y - yi) / (yj - yi) + xi);
+                    if (intersect) inside = !inside;
+                }
+                return inside;
+            }
+
+            function pointToSegmentDistance(px, py, ax, ay, bx, by) {
+                const abx = bx - ax, aby = by - ay;
+                const apx = px - ax, apy = py - ay;
+                const lenSq = abx * abx + aby * aby;
+                let t = lenSq > 0 ? (apx * abx + apy * aby) / lenSq : 0;
+                t = Math.max(0, Math.min(1, t));
+                const cx = ax + abx * t, cy = ay + aby * t;
+                return Math.hypot(px - cx, py - cy);
+            }
+
+            function closestEdgeInsertIndex(nodes, x, y) {
+                let bestIndex = nodes.length, bestDist = Infinity;
+                for (let i = 0; i < nodes.length; i++) {
+                    const a = nodes[i], b = nodes[(i + 1) % nodes.length];
+                    const dist = pointToSegmentDistance(x, y, a.x, a.y, b.x, b.y);
+                    if (dist < bestDist) {
+                        bestDist = dist;
+                        bestIndex = i + 1;
+                    }
+                }
+                    return { index: bestIndex, distance: bestDist };
+            }
+
+            function syncRowFields(roi) {
+                const manager = window.calibrationManager;
+                if (!manager) return;
+
+                const rowEl = manager.container.querySelector(`[data-id="${roi.id}"]`);
+                if (!rowEl) return;
+
+                if (roi.shape === 'cylinder') {
+                    rowEl.querySelector('.cyl-cx').value = roi.cx.toFixed(2);
+                    rowEl.querySelector('.cyl-cy').value = roi.cy.toFixed(2);
+                    rowEl.querySelector('.cyl-radius').value = roi.radius.toFixed(2);
+                    rowEl.querySelector('.cyl-start-z').value = Math.round(roi.z.start);
+                    rowEl.querySelector('.cyl-end-z').value = Math.round(roi.z.end);
+                } else if (roi.shape === 'nodal') {
+                    rowEl.querySelector('.nodal-start-z').value = Math.round(roi.z.start);
+                    rowEl.querySelector('.nodal-end-z').value = Math.round(roi.z.end);
+                    manager.refreshNodeCount?.(roi, rowEl);
+                } else {
+                    rowEl.querySelector('.slice-start-x').value = Math.round(roi.x.start);
+                    rowEl.querySelector('.slice-end-x').value = Math.round(roi.x.end);
+                    rowEl.querySelector('.slice-start-y').value = Math.round(roi.y.start);
+                    rowEl.querySelector('.slice-end-y').value = Math.round(roi.y.end);
+                    rowEl.querySelector('.slice-start-z').value = Math.round(roi.z.start);
+                    rowEl.querySelector('.slice-end-z').value = Math.round(roi.z.end);
+                }
+            }
+
+            function finishDrag(roi) {
+                syncRowFields(roi);
+                roi.samplePromise = window.calibrationManager.sampleVoxelData(roi);
+            }
+
+            function notify3D(roi) {
+                window.dispatchEvent(new Event('calibration-roi-updated'));
+                window.calibrationManager?.updateROIVisual?.(roi);
+            }
+
             canvases.forEach(({ plane, canvas }) => {
                 canvas.addEventListener('mousedown', (e) => {
                     try {
@@ -2176,21 +2466,65 @@
 
                         for (let i = manager.rois.length - 1; i >= 0; i--) {
                             const roi = manager.rois[i];
-                            const minX = Math.min(roi[coords.axisX].start, roi[coords.axisX].end);
-                            const maxX = Math.max(roi[coords.axisX].start, roi[coords.axisX].end);
-                            const minY = Math.min(roi[coords.axisY].start, roi[coords.axisY].end);
-                            const maxY = Math.max(roi[coords.axisY].start, roi[coords.axisY].end);
+                            const shape = roi.shape || 'box';
+
+                            // Nodal axial view
+                            if (shape === 'nodal' && plane === 'axial') {
+                                const nodeIndex = polygonNodeHitTest(roi, coords.physX, coords.physY, coords.tolX, coords.tolY);
+                                if (nodeIndex !== -1) {
+                                    activeNodeDrag = { roi, nodeIndex };
+                                    canvas.style.cursor = 'grabbing';
+                                    return;
+                                }
+                                if (pointInPolygon(roi.nodes, coords.physX, coords.physY)) {
+                                    activeDrag = { roi, index: i, action: 'move', axisX: coords.axisX, axisY: coords.axisY, lastX: coords.physX, lastY: coords.physY };
+                                    canvas.style.cursor = 'grabbing';
+                                    return;
+                                }
+                                continue;
+                            }
+
+                            // Cylinder axial view
+                            if (shape === 'cylinder' && plane === 'axial') {
+                                const dist = Math.hypot(coords.physX - roi.cx, coords.physY - roi.cy);
+                                const edgeTol = Math.max(coords.tolX, coords.tolY);
+                                if (Math.abs(dist - roi.radius) <= edgeTol) {
+                                    activeDrag = { roi, index: i, action: 'resize-radius', axisX: coords.axisX, axisY: coords.axisY, lastX: coords.physX, lastY: coords.physY };
+                                    canvas.style.cursor = 'crosshair';
+                                    return;
+                                }
+                                if (dist <= roi.radius + edgeTol) {
+                                    activeDrag = { roi, index: i, action: 'move', axisX: coords.axisX, axisY: coords.axisY, lastX: coords.physX, lastY: coords.physY };
+                                    canvas.style.cursor = 'grabbing';
+                                    return;
+                                }
+                                continue;
+                            }
+
+                            const rangeX = getAxisRange(roi, coords.axisX);
+                            const rangeY = getAxisRange(roi, coords.axisY);
+                            const minX = Math.min(rangeX.start, rangeX.end);
+                            const maxX = Math.max(rangeX.start, rangeX.end);
+                            const minY = Math.min(rangeY.start, rangeY.end);
+                            const maxY = Math.max(rangeY.start, rangeY.end);
 
                             if (coords.physX >= minX - coords.tolX && coords.physX <= maxX + coords.tolX &&
                                 coords.physY >= minY - coords.tolY && coords.physY <= maxY + coords.tolY) {
                                 
                                 let action = 'move';
-                                if (Math.abs(coords.physX - minX) <= coords.tolX) action = 'resize-left';
-                                else if (Math.abs(coords.physX - maxX) <= coords.tolX) action = 'resize-right';
-                                else if (Math.abs(coords.physY - minY) <= coords.tolY) action = 'resize-top';
-                                else if (Math.abs(coords.physY - maxY) <= coords.tolY) action = 'resize-bottom';
+                                let resizeAxis = null;
+                                if (Math.abs(coords.physX - minX) <= coords.tolX) { action = 'resize-edge'; resizeAxis = { axis: coords.axisX, isMin: true }; }
+                                else if (Math.abs(coords.physX - maxX) <= coords.tolX) { action = 'resize-edge'; resizeAxis = { axis: coords.axisX, isMin: false }; }
+                                else if (Math.abs(coords.physY - minY) <= coords.tolY) { action = 'resize-edge'; resizeAxis = { axis: coords.axisY, isMin: true }; }
+                                else if (Math.abs(coords.physY - maxY) <= coords.tolY) { action = 'resize-edge'; resizeAxis = { axis: coords.axisY, isMin: false }; }
 
-                                activeDrag = { roi, index: i, action, axisX: coords.axisX, axisY: coords.axisY, lastX: coords.physX, lastY: coords.physY };
+                                // Nodal ROI only
+                                if (shape === 'nodal' && action === 'resize-edge' && resizeAxis.axis !== 'z') {
+                                    action = 'move';
+                                    resizeAxis = null;
+                                }
+
+                                activeDrag = { roi, index: i, action, resizeAxis, axisX: coords.axisX, axisY: coords.axisY, lastX: coords.physX, lastY: coords.physY };
                                 canvas.style.cursor = action === 'move' ? 'grabbing' : 'crosshair';
                                 return; 
                             }
@@ -2201,80 +2535,90 @@
                 });
 
                 canvas.addEventListener('mousemove', (e) => {
-                    if (!activeDrag) return;
+                    if (!activeDrag && !activeNodeDrag) return;
 
                     try {
                         const coords = getPhysCoords(e, plane, canvas);
                         if (!coords) return;
 
+                        if (activeNodeDrag) {
+                            const { roi, nodeIndex } = activeNodeDrag;
+                            roi.nodes[nodeIndex].x = coords.physX;
+                            roi.nodes[nodeIndex].y = coords.physY;
+                            notify3D(roi);
+                            return;
+                        }
+
                         const dx = coords.physX - activeDrag.lastX;
                         const dy = coords.physY - activeDrag.lastY;
                         const { roi, axisX, axisY, action } = activeDrag;
 
-                        // Helper to safely apply resize without ever causing negative bounds
-                        const safeApply = (axis, delta, isMin) => {
-                            const isStartSmaller = roi[axis].start <= roi[axis].end;
-                            let min = isStartSmaller ? roi[axis].start : roi[axis].end;
-                            let max = isStartSmaller ? roi[axis].end : roi[axis].start;
-
-                            if (isMin) {
-                                min += delta;
-                                if (min >= max - 1) min = max - 1; // Prevent crossing
-                            } else {
-                                max += delta;
-                                if (max <= min + 1) max = min + 1; // Prevent crossing
-                            }
-
-                            if (isStartSmaller) { roi[axis].start = min; roi[axis].end = max; }
-                            else { roi[axis].start = max; roi[axis].end = min; }
-                        };
-
                         if (action === 'move') {
-                            roi[axisX].start += dx; roi[axisX].end += dx;
-                            roi[axisY].start += dy; roi[axisY].end += dy;
-                        } else if (action === 'resize-left') { safeApply(axisX, dx, true); }
-                        else if (action === 'resize-right') { safeApply(axisX, dx, false); }
-                        else if (action === 'resize-top') { safeApply(axisY, dy, true); }
-                        else if (action === 'resize-bottom') { safeApply(axisY, dy, false); }
+                            applyAxisDelta(roi, axisX, dx);
+                            applyAxisDelta(roi, axisY, dy);
+                        } else if (action === 'resize-radius') {
+                            roi.radius = Math.max(0.5, Math.hypot(coords.physX - roi.cx, coords.physY - roi.cy));
+                        } else if (action === 'resize-edge') {
+                            const { axis, isMin } = activeDrag.resizeAxis;
+                            const delta = axis === axisX ? dx : dy;
+                            const updated = safeApplyRange(getAxisRange(roi, axis), delta, isMin);
+                            writeAxisRange(roi, axis, updated);
+                        }
 
                         activeDrag.lastX = coords.physX;
                         activeDrag.lastY = coords.physY;
 
-                        // Force the 2D overlays to redraw
-                        window.dispatchEvent(new Event('calibration-roi-updated'));
-                        
-                        // IMPORTANT: Tell the 3D manager to update its meshes so it doesn't fall out of sync
-                        if (window.calibrationManager && typeof window.calibrationManager.update3DBoxVisual === 'function') {
-                            window.calibrationManager.update3DBoxVisual(activeDrag.roi);
-                        } else if (window.calibrationManager && typeof window.calibrationManager.syncUIFrom3D === 'function') {
-                            window.calibrationManager.syncUIFrom3D(); 
-                        }
-
+                        notify3D(roi);
                     } catch (err) {
                         console.error("Error during drag:", err);
                         activeDrag = null;
+                        activeNodeDrag = null;
+                    }
+                });
+
+                canvas.addEventListener('dblclick', (e) => {
+                    try {
+                        if (plane !== 'axial') return;
+                        const manager = window.calibrationManager;
+                        if (!manager) return;
+
+                        const selectedRoi = manager.rois.find(r => r.id === manager.selectRoiId);
+                        if (!selectedRoi || selectedRoi.shape !== 'nodal') return;
+
+                        const coords = getPhysCoords(e, plane, canvas);
+                        if (!coords) return;
+
+                        const nodeIndex = polygonNodeHitTest(selectedRoi, coords.physX, coords.physY, coords.tolX, coords.tolY);
+                        if (nodeIndex !== -1) {
+                            if (selectedRoi.nodes.length > 3) {
+                                selectedRoi.nodes.splice(nodeIndex, 1);
+                            }
+                        } else {
+                            const { index, dist } = closestEdgeInsertIndex(selectedRoi.nodes, coords.physX, coords.physY);
+                            const edgeTol = Math.max(coords.tolX, coords.tolY) * 2;
+                            if (dist > edgeTol) return;
+                            selectedRoi.nodes.splice(index, 0, { x: coords.physX, y: coords.physY });
+                        }
+
+                        manager.refreshNodeCount?.(selectedRoi);
+                        selectedRoi.samplePromise = manager.sampleVoxelData(selectedRoi);
+                        notify3D(selectedRoi);
+                    } catch (err) {
+                        console.error("Error during double-click:", err);
                     }
                 });
             });
 
             window.addEventListener('mouseup', () => {
                 if (activeDrag) {
-                    const manager = window.calibrationManager;
-                    if (manager) {
-                        const rowEl = manager.container.querySelector(`[data-id="${activeDrag.roi.id}"]`);
-                        if (rowEl) {
-                            rowEl.querySelector('.slice-start-x').value = Math.round(activeDrag.roi.x.start);
-                            rowEl.querySelector('.slice-end-x').value = Math.round(activeDrag.roi.x.end);
-                            rowEl.querySelector('.slice-start-y').value = Math.round(activeDrag.roi.y.start);
-                            rowEl.querySelector('.slice-end-y').value = Math.round(activeDrag.roi.y.end);
-                            rowEl.querySelector('.slice-start-z').value = Math.round(activeDrag.roi.z.start);
-                            rowEl.querySelector('.slice-end-z').value = Math.round(activeDrag.roi.z.end);
-                        }
-                        activeDrag.roi.samplePromise = manager.sampleVoxelData(activeDrag.roi);
-                    }
-
+                    finishDrag(activeDrag.roi);
                     canvases.forEach(c => c.canvas.style.cursor = 'default');
                     activeDrag = null;
+                }
+                if (activeNodeDrag) {
+                    finishDrag(activeNodeDrag.roi);
+                    canvases.forEach(c => c.canvas.style.cursor = 'default');
+                    activeNodeDrag = null;
                 }
             });
         }

@@ -2,7 +2,7 @@
 date: '2026-06-12T15:54:46+01:00'
 title: 'Transformations'
 category: 'General Information'
-weight: 104
+weight: 105
 ---
 
 Transformations can be applied in LUMA through either the CLI flags or through the parameter file.
