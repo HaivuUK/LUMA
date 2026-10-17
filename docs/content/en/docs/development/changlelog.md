@@ -36,6 +36,8 @@ weight: 401
 #### [0.3.7]
 
 - Add cylindrical ROI and node based box ROI phantom calibration.
+- Update nifti crate to 0.18 to resolve possible vulnerabilities in the underlying dependencies.
+- Update nalgebra crate to 0.35 with new nifti crate.
 
 #### [0.3.6]
 

@@ -34,8 +34,8 @@ indicatif = "0.18"
 palette = "0.7"
 bytemuck = { version = "1", features = ["derive"] }
 tauri = { version = "2", features = ["macos-private-api"] }
-nifti = { version = "0.17", features = ["ndarray_volumes", "nalgebra_affine"] }
-nalgebra = "0.33" # NIfTI package limits us to 0.33
+nifti = { version = "0.18", features = ["ndarray_volumes", "nalgebra_affine"] }
+nalgebra = "0.35" # NIfTI package limits us to 0.35
 flate2 = "1"
 bzip2 = "0.6"
 
