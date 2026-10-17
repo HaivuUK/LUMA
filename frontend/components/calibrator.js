@@ -700,27 +700,36 @@ export class CalibrationManager {
             let meanHU;
 
             if (roi.shape === 'cylinder') {
-                meanHU = await invoke('get_ct_roi_mean_cylinder', {
-                    xCenter: roi.cx,
-                    yCenter: roi.cy,
-                    radius: roi.radius,
-                    zStart: Math.min(roi.z.start, roi.z.end),
-                    zEnd: Math.max(roi.z.start, roi.z.end),
+                meanHU = await invoke('get_ct_roi_mean', {
+                    roiType: 'cylinder',
+                    options: {
+                        xCenter: roi.cx,
+                        yCenter: roi.cy,
+                        radius: roi.radius,
+                        zStart: Math.min(roi.z.start, roi.z.end),
+                        zEnd: Math.max(roi.z.start, roi.z.end),
+                    }
                 });
             } else if (roi.shape === 'nodal') {
-                meanHU = await invoke('get_ct_roi_mean_nodal', {
-                    points: roi.nodes.map(node => [node.x, node.y]),
-                    zStart: Math.min(roi.z.start, roi.z.end),
-                    zEnd: Math.max(roi.z.start, roi.z.end)
+                meanHU = await invoke('get_ct_roi_mean', {
+                    roiType: 'nodal',
+                    options: {
+                        points: roi.nodes.map(node => [node.x, node.y]),
+                        zStart: Math.min(roi.z.start, roi.z.end),
+                        zEnd: Math.max(roi.z.start, roi.z.end)
+                    }
                 });
             } else {
                 meanHU = await invoke('get_ct_roi_mean', {
-                    xStart: Math.min(roi.x.start, roi.x.end),
-                    xEnd: Math.max(roi.x.start, roi.x.end),
-                    yStart: Math.min(roi.y.start, roi.y.end),
-                    yEnd: Math.max(roi.y.start, roi.y.end),
-                    zStart: Math.min(roi.z.start, roi.z.end),
-                    zEnd: Math.max(roi.z.start, roi.z.end)
+                    roiType: 'box',
+                    options: {
+                        xStart: Math.min(roi.x.start, roi.x.end),
+                        xEnd: Math.max(roi.x.start, roi.x.end),
+                        yStart: Math.min(roi.y.start, roi.y.end),
+                        yEnd: Math.max(roi.y.start, roi.y.end),
+                        zStart: Math.min(roi.z.start, roi.z.end),
+                        zEnd: Math.max(roi.z.start, roi.z.end)
+                    }
                 });
             }
 
