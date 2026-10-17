@@ -80,17 +80,35 @@
     background: var(--input-background);
     color: var(--button-text-colour);
 }
+.calibration-controls .roi-shape-select {
+    border-radius: var(--button-border-radius);
+    border: var(--input-border-colour);
+    background: rgba(255, 255, 255, 0.92);
+    color: #111;
+    display: block;
+    width: calc(100% - 20px);
+    box-sizing: border-box;
+    font-size: 14px;
+    padding: 2px;
+    margin: 2px 10px 4px 10px;
+}
 .calibration-controls .range-group {
-    display: grid;
-    grid-template-columns: 20px 80px 20px 80px;
-    justify-content: space-between;
-    vertical-align: center;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 4px;
+    justify-content: space-evenly;
     padding: 4px;
     font-size: 12px;
 }
+.calibration-controls .range-group input {
+    flex: 1 1 0;
+    min-width: 0;
+    box-sizing: border-box;
+}
 .calibration-controls .range-group label {
     font-size: 14px;
-    align-content: center;
+    text-align: center;
 }
 .calibration-controls .mean-hu-display {
     display: flex;
