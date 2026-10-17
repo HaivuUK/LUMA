@@ -1,7 +1,7 @@
 ---
 title: "Graphical User Interface (GUI)"
 description: "Support the ability to use a GUI for the software instead of the command line."
-version: "0.X.0"
+version: "0.4.0"
 time: "Unknown"
 ---
 
@@ -17,6 +17,13 @@ So the plan is to explore the possibility of a GUI for LUMA, ideally that does n
 
 LUMA uses Tauri for the current visualisation features and the build pipeline, it would make sense to use Tauri for the GUI as well. 
 However, I am bad at coding and do not know if the huge file size limitations and speed issues of those files are due to using Tauri and webview2 or if it is due to my own code. So I will need to explore this further.
+
+##### Limitations
+
+From exploration of this in Tauri, it is relatively easy to implement a GUI as all the visualisation features are already implemented in Tauri.
+However, it has limitations in terms of running multiple instances or trying to visualise one after another with various freezes that occur.
+This maybe limitations in Tauri or my skill.
+Additionally, the issue of sending large files remains a limitation that it would be nice to not have to deal with (dropping tauri may be the right answer).
 
 #### Iced
 
@@ -36,3 +43,6 @@ However, there are crates that allow for 3d rendering in egui:
 egui sitting on top of a 3D background:
 - [bevy_egui](https://github.com/mvlabat/bevy_egui) 
 - [three-d](https://github.com/asny/three-d)
+
+egui seems promising from initial exploration, but I have not explored it in depth yet.
+would need to explore the packaging options as well as currently we build with tauri.

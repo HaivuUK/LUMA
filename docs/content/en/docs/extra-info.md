@@ -7,7 +7,7 @@ weight: 600
 
 ### Integration Schemes
 - **Centroid**: Single point at element center (fastest)
-- **Gauss Quadrature**: 1, 4, or 10-point rules for tetrahedra (most accurate)
+- **Gauss Quadrature**: 1, 4, or 10-point rules for tetrahedral (most accurate)
 - **Dense Sampling**: Adaptive grid sampling (good for large elements)
 
 ### Integration Methods

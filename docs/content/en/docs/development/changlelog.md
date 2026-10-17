@@ -8,7 +8,16 @@ weight: 401
 >[!Note]
 > Release Candidates are targeting v1.0.0 which will release once ready.
 
-### Release Candidate 9 (first public release, formats, python bindings, and fixes) [July - September 2026] [0.3.X - 0.4.X]
+>[!Note]
+> I am currently in my write-up period for my PhD, my development time is limited, and so work from me will be slow.
+> Some stuff is still being worked on, but I am not focusing on pushing new features unless required for my PhD work, or if I have time.
+> Other people are welcome to contribute, and I will try to review PRs as quickly as I can if anyone wants to contribute.
+> Active development will likely resume after January or March 2027.
+
+### Release Candidate 10 (possible UI rewrite) [2027] [0.4.X]
+- TODO: Full GUI and general UI rewrite to improve usability and user experience (not confirmed).
+
+### Release Candidate 9 (first public release, formats, python bindings, and fixes) [July - October 2026] [0.3.X]
 - TODO: Improve project structure and modularity.
 - TODO: Add support for additional mesh formats such as Neutral (.ntr) files, ANSYS Input (.inp) files, and MARCs files.
 - TODO: Python bindings using PyO3 for drop-in replacement in existing Python workflows.
