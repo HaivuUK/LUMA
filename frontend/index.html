@@ -266,17 +266,21 @@
                 </button>
                 <input type="text" class="roi-name" placeholder="Insert ROI name">
                 <button type="button" class="btn-delete-roi" title="Delete ROI">&times;</button>
+            </div>
+            <div class="mean-hu-display">
+                <label>Mean HU:</label>
+                <span class="roi-mean-hu">--</span>
+            </div>
+            <div class="roi-row-bottom">
                 <div class="input-inline">
                     <label>Target BMD:</label>
                     <input type="number" class="roi-bmd" step="0.1" placeholder="mg/cm3">
                 </div>
-            </div>
-            <select class="roi-shape-select" title="ROI Shape">
-                <option value="box">Box</option>
-                <option value="cylinder">Cylinder</option>
-                <option value="nodal">Nodal</option>
-            </select>
-            <div class="roi-row-bottom">
+                <select class="roi-shape-select" title="ROI Shape">
+                    <option value="box">Box</option>
+                    <option value="cylinder">Cylinder</option>
+                    <option value="nodal">Nodal</option>
+                </select>
                 <div class="roi-box-fields">
                     <div class="range-group">
                         <label>X:</label>
@@ -328,10 +332,6 @@
                             <span class="nodal-node-count">0</span>
                         </label>
                     </div>
-                </div>
-                <div class="mean-hu-display">
-                    <label>Mean HU:</label>
-                    <span class="roi-mean-hu">--</span>
                 </div>
             </div>
         </div>
