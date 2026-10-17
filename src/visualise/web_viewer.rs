@@ -1,6 +1,7 @@
 ﻿use super::{MeshVisualisationData, MeshCtVisualisationData, VisualisationConfig};
 use crate::volume::Volume;
 use anyhow::{Result, anyhow};
+use log::warn;
 use nalgebra::point;
 use tauri::{Manager, State, WebviewUrl, WebviewWindowBuilder};
 
@@ -50,142 +51,45 @@ struct AppState {
      Ok(slice_data)
  }
 
-#[inline]
-fn map_to_index(world: f64, origin: f64, spacing: f64, dim: usize) -> usize {
-    (((world - origin) / spacing).round() as isize).clamp(0, (dim as isize) - 1) as usize
-}
-
-#[tauri::command]
-fn get_ct_roi_mean(
+#[derive(serde::Deserialize)]
+#[serde(default, rename_all = "camelCase")]
+struct RoiMeanOptions {
     x_start: f64,
     x_end: f64,
     y_start: f64,
     y_end: f64,
     z_start: f64,
     z_end: f64,
-    state: State<'_, AppState>,
-) -> Result<f64, String> {
-    let volume = state.volume.as_ref().ok_or_else(|| "No volume data".to_string())?;
-
-    let nx = volume.x.len();
-    let ny = volume.y.len();
-    let nz = volume.z.len();
-    if nx < 2 || ny < 2 || nz < 2 {
-        return Err("Volume has insufficient data".to_string());
-    }
-
-    let origin_x = volume.x[0];
-    let origin_y = volume.y[0];
-    let origin_z = volume.z[0];
-    let spacing_x = volume.x[1] - volume.x[0];
-    let spacing_y = volume.y[1] - volume.y[0];
-    let spacing_z = volume.z[1] - volume.z[0];
-
-    let idx_x_start = map_to_index(x_start, origin_x, spacing_x, nx);
-    let idx_x_end = map_to_index(x_end, origin_x, spacing_x, nx);
-    
-    let idx_y_start = map_to_index(y_start, origin_y, spacing_y, ny);
-    let idx_y_end = map_to_index(y_end, origin_y, spacing_y, ny);
-    
-    let idx_z_start = map_to_index(z_start, origin_z, spacing_z, nz);
-    let idx_z_end = map_to_index(z_end, origin_z, spacing_z, nz);
-
-    let (x0, x1) = (idx_x_start.min(idx_x_end), idx_x_start.max(idx_x_end));
-    let (y0, y1) = (idx_y_start.min(idx_y_end), idx_y_start.max(idx_y_end));
-    let (z0, z1) = (idx_z_start.min(idx_z_end), idx_z_start.max(idx_z_end));
-
-    let stride_xy = nx * ny;
-
-    let mut sum = 0.0f64;
-    let mut count = 0usize;
-
-    for z in z0..=z1 {
-        for y in y0..=y1 {
-            let row_offset = y * nx + z * stride_xy;
-            for x in x0..=x1 {
-                let index = row_offset + x;
-                if let Some(value) = volume.scalars.get(index) {
-                    sum += *value as f64;
-                    count += 1;
-                }
-            }
-        }
-    }
-
-    if count == 0 {
-        return Err("ROI contains no voxels".to_string());
-    }
-
-    Ok(sum / count as f64)
-}
-
-#[tauri::command]
-fn get_ct_roi_mean_cylinder(
     x_center: f64,
     y_center: f64,
     radius: f64,
-    z_start: f64,
-    z_end: f64,
-    state: State<'_, AppState>,
- ) -> Result<f64, String> {
-    let volume = state.volume.as_ref().ok_or_else(|| "No volume data".to_string())?;
+    points: Vec<[f64; 2]>,
+}
 
-    // Calculate the volume of a cylinder: V = π * r^2 * h
-    let nx = volume.x.len();
-    let ny = volume.y.len();
-    let nz = volume.z.len();
-    if nx < 2 || ny < 2 || nz < 2 {
-        return Err("Volume has insufficient data".to_string());
-    }
-
-    let origin_z = volume.z[0];
-
-    let spacing_z = volume.z[1] - volume.z[0];
-
-    let idx_z_start = map_to_index(z_start, origin_z, spacing_z, nz);
-    let idx_z_end = map_to_index(z_end, origin_z, spacing_z, nz);
-
-    let (z0, z1) = (idx_z_start.min(idx_z_end), idx_z_start.max(idx_z_end));
-
-    let stride_xy = nx * ny;
-
-    let mut sum = 0.0f64;
-    let mut count = 0usize;
-
-    for z in z0..=z1 {
-        for y in 0..ny {
-            let row_offset = y * nx + z * stride_xy;
-            for x in 0..nx {
-                let world_x = volume.x[x];
-                let world_y = volume.y[y];
-                let dx = world_x - x_center;
-                let dy = world_y - y_center;
-                if dx * dx + dy * dy <= radius * radius {
-                    let index = row_offset + x;
-                    if let Some(value) = volume.scalars.get(index) {
-                        sum += *value as f64;
-                        count += 1;
-                    }
-                }
-            }
+impl Default for RoiMeanOptions {
+    fn default() -> Self {
+        Self {
+            x_start: 0.0,
+            x_end: 0.0,
+            y_start: 0.0,
+            y_end: 0.0,
+            z_start: 0.0,
+            z_end: 0.0,
+            x_center: 0.0,
+            y_center: 0.0,
+            radius: 0.0,
+            points: Vec::new(),
         }
     }
-
-    if count == 0 {
-        return Err("ROI contains no voxels".to_string());
-    }
-
-    Ok(sum / count as f64)
 }
 
 #[tauri::command]
-fn get_ct_roi_mean_nodal(
-    points: Vec<[f64; 2]>,
-    z_start: f64,
-    z_end: f64,
-    state: State<'_, AppState>
+fn get_ct_roi_mean(
+    roi_type: String,
+    options: RoiMeanOptions,
+    state: State<'_, AppState>,
 ) -> Result<f64, String> {
-    if points.len() < 3 {
+    if roi_type == "nodal" && options.points.len() < 3 {
         return Err("At least 3 points are required to define a polygon".to_string());
     }
 
@@ -205,26 +109,140 @@ fn get_ct_roi_mean_nodal(
     let spacing_y = volume.y[1] - volume.y[0];
     let spacing_z = volume.z[1] - volume.z[0];
 
-    let idx_z_start = map_to_index(z_start, origin_z, spacing_z, nz);
-    let idx_z_end = map_to_index(z_end, origin_z, spacing_z, nz);
-    let (z0, z1) = (idx_z_start.min(idx_z_end), idx_z_start.max(idx_z_end));
+    let (mut x_start, mut x_end, mut y_start, mut y_end) = (0.0, 0.0, 0.0, 0.0);
 
-    let (mut min_x, mut max_x) = (f64::INFINITY, f64::NEG_INFINITY);
-    let (mut min_y, mut max_y) = (f64::INFINITY, f64::NEG_INFINITY);
-    for point in &points {
-        min_x = min_x.min(point[0]);
-        max_x = max_x.max(point[0]);
-        min_y = min_y.min(point[1]);
-        max_y = max_y.max(point[1]);
+    if roi_type == "nodal" {
+        (x_start, x_end) = (f64::INFINITY, f64::NEG_INFINITY);
+        (y_start, y_end) = (f64::INFINITY, f64::NEG_INFINITY);
+        for point in &options.points {
+            x_start = x_start.min(point[0]);
+            x_end = x_end.max(point[0]);
+            y_start = y_start.min(point[1]);
+            y_end = y_end.max(point[1]);
+        }
+    } else {
+        x_start = options.x_start;
+        x_end = options.x_end;
+        y_start = options.y_start;
+        y_end = options.y_end;
     }
 
-    let idx_x_min = map_to_index(min_x, origin_x, spacing_x, nx);
-    let idx_x_max = map_to_index(max_x, origin_x, spacing_x, nx);
-    let idx_y_min = map_to_index(min_y, origin_y, spacing_y, ny);
-    let idx_y_max = map_to_index(max_y, origin_y, spacing_y, ny);
-    let (x0, x1) = (idx_x_min.min(idx_x_max), idx_x_min.max(idx_x_max));
-    let (y0, y1) = (idx_y_min.min(idx_y_max), idx_y_min.max(idx_y_max));
+    let idx_x_start = map_to_index(x_start, origin_x, spacing_x, nx);
+    let idx_x_end = map_to_index(x_end, origin_x, spacing_x, nx);
 
+    let idx_y_start = map_to_index(y_start, origin_y, spacing_y, ny);
+    let idx_y_end = map_to_index(y_end, origin_y, spacing_y, ny);
+
+    let idx_z_start = map_to_index(options.z_start, origin_z, spacing_z, nz);
+    let idx_z_end = map_to_index(options.z_end, origin_z, spacing_z, nz);
+
+    let (x0, x1) = (idx_x_start.min(idx_x_end), idx_x_start.max(idx_x_end));
+    let (y0, y1) = (idx_y_start.min(idx_y_end), idx_y_start.max(idx_y_end));
+    let (z0, z1) = (idx_z_start.min(idx_z_end), idx_z_start.max(idx_z_end));
+
+    let stride_xy = nx * ny;
+
+    let mut sum = 0.0f64;
+    let mut count = 0usize;
+
+    match roi_type.as_str() {
+        "box" => (sum, count) = get_ct_roi_mean_box(z0, z1, y0, y1, x0, x1, nx, stride_xy, volume, sum, count),
+        "cylinder" => (sum, count) = get_ct_roi_mean_cylinder(z0, z1, nx, ny, options.x_center, options.y_center, options.radius, stride_xy, volume, sum, count),
+        "nodal" => (sum, count) = get_ct_roi_mean_nodal(x0, x1, y0, y1, z0, z1, options.points, nx, stride_xy, volume, sum, count),
+        _ => return Err(format!("Invalid ROI type: {}", roi_type)),
+    }
+
+    if count == 0 {
+        return Err("ROI contains no voxels".to_string());
+    }
+
+    Ok(sum / count as f64)
+}
+
+#[inline]
+fn map_to_index(world: f64, origin: f64, spacing: f64, dim: usize) -> usize {
+    (((world - origin) / spacing).round() as isize).clamp(0, (dim as isize) - 1) as usize
+}
+
+#[inline]
+fn get_ct_roi_mean_box(
+    z0: usize,
+    z1: usize,
+    y0: usize,
+    y1: usize,
+    x0: usize,
+    x1: usize,
+    nx: usize,
+    stride_xy: usize,
+    volume: &Volume,
+    mut sum: f64,
+    mut count: usize
+) -> (f64, usize) {
+    for z in z0..=z1 {
+        for y in y0..=y1 {
+            let row_offset = y * nx + z * stride_xy;
+            for x in x0..=x1 {
+                let index = row_offset + x;
+                if let Some(value) = volume.scalars.get(index) {
+                    sum += *value as f64;
+                    count += 1;
+                }
+            }
+        }
+    }
+    (sum, count)
+}
+
+#[inline]
+fn get_ct_roi_mean_cylinder(
+    z0: usize,
+    z1: usize,
+    nx: usize,
+    ny: usize,
+    x_center: f64,
+    y_center: f64,
+    radius: f64,
+    stride_xy: usize,
+    volume: &Volume,
+    mut sum: f64,
+    mut count: usize
+ ) -> (f64, usize) {
+    for z in z0..=z1 {
+        for y in 0..ny {
+            let row_offset = y * nx + z * stride_xy;
+            for x in 0..nx {
+                let world_x = volume.x[x];
+                let world_y = volume.y[y];
+                let dx = world_x - x_center;
+                let dy = world_y - y_center;
+                if dx * dx + dy * dy <= radius * radius {
+                    let index = row_offset + x;
+                    if let Some(value) = volume.scalars.get(index) {
+                        sum += *value as f64;
+                        count += 1;
+                    }
+                }
+            }
+        }
+    }
+    (sum, count)
+}
+
+#[inline]
+fn get_ct_roi_mean_nodal(
+    x0: usize,
+    x1: usize,
+    y0: usize,
+    y1: usize,
+    z0: usize,
+    z1: usize,
+    points: Vec<[f64; 2]>,
+    nx: usize,
+    stride_xy: usize,
+    volume: &Volume,
+    mut sum: f64,
+    mut count: usize
+) -> (f64, usize) {
     let mut inside_polygon: Vec<(usize, usize)>= Vec::new();
     for y in y0..=y1 {
         let wy = volume.y[y];
@@ -251,12 +269,8 @@ fn get_ct_roi_mean_nodal(
     }
 
     if inside_polygon.is_empty() {
-        return Err("No voxels found inside the polygon".to_string());
+        warn!("ROI polygon contains no voxels");
     }
-
-    let stride_xy = nx * ny;
-    let mut sum = 0.0f64;
-    let mut count = 0usize;
 
     for z in z0..=z1 {
         let z_offset = z * stride_xy;
@@ -268,14 +282,8 @@ fn get_ct_roi_mean_nodal(
             }
         }
     }
-
-    if count == 0 {
-        return Err("No voxels found inside the polygon".to_string());
-    }
-
-    Ok(sum / count as f64)
+    (sum, count)
 }
-
 
 #[tauri::command]
 fn get_view_mode(state: State<'_, AppState>) -> Result<String, String> {
@@ -389,8 +397,6 @@ fn build_tauri_app(app_state: AppState, config: &VisualisationConfig) -> Result<
              get_view_mode,
              get_ct_slice,
              get_ct_roi_mean,
-             get_ct_roi_mean_cylinder,
-             get_ct_roi_mean_nodal,
              get_mesh_metadata,
              get_mesh_vertices,
              get_mesh_faces,
