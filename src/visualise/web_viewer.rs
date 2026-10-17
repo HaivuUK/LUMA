@@ -1,6 +1,7 @@
 ﻿use super::{MeshVisualisationData, MeshCtVisualisationData, VisualisationConfig};
 use crate::volume::Volume;
 use anyhow::{Result, anyhow};
+use nalgebra::point;
 use tauri::{Manager, State, WebviewUrl, WebviewWindowBuilder};
 
 #[derive(Clone)]
@@ -49,6 +50,11 @@ struct AppState {
      Ok(slice_data)
  }
 
+#[inline]
+fn map_to_index(world: f64, origin: f64, spacing: f64, dim: usize) -> usize {
+    (((world - origin) / spacing).round() as isize).clamp(0, (dim as isize) - 1) as usize
+}
+
 #[tauri::command]
 fn get_ct_roi_mean(
     x_start: f64,
@@ -61,70 +67,33 @@ fn get_ct_roi_mean(
 ) -> Result<f64, String> {
     let volume = state.volume.as_ref().ok_or_else(|| "No volume data".to_string())?;
 
+    let nx = volume.x.len();
+    let ny = volume.y.len();
+    let nz = volume.z.len();
+    if nx < 2 || ny < 2 || nz < 2 {
+        return Err("Volume has insufficient data".to_string());
+    }
+
     let origin_x = volume.x[0];
     let origin_y = volume.y[0];
     let origin_z = volume.z[0];
+    let spacing_x = volume.x[1] - volume.x[0];
+    let spacing_y = volume.y[1] - volume.y[0];
+    let spacing_z = volume.z[1] - volume.z[0];
 
-    let spacing_x = if volume.x.len() > 1 {
-        volume.x[1] - volume.x[0]
-    } else {
-        return Err("Volume has insufficient x data".to_string());
-    };
-    let spacing_y = if volume.y.len() > 1 {
-        volume.y[1] - volume.y[0]
-    } else {
-        return Err("Volume has insufficient y data".to_string());
-    };
-    let spacing_z = if volume.z.len() > 1 {
-        volume.z[1] - volume.z[0]
-    } else {
-        return Err("Volume has insufficient z data".to_string());
-    };
-
-    let vol_width = volume.x.len();
-    let vol_height = volume.y.len();
-    let vol_depth = volume.z.len();
-
-    let map_to_index = |world_pos: f64, origin: f64, spacing: f64, max_dim: usize| -> usize {
-        let index = ((world_pos - origin) / spacing).round() as isize;
-        // Clamp only *after* conversion to ensure we don't crash on edges
-        index.clamp(0, (max_dim as isize) - 1) as usize
-    };
-
-    let idx_x_start = map_to_index(x_start, origin_x, spacing_x, vol_width);
-    let idx_x_end = map_to_index(x_end, origin_x, spacing_x, vol_width);
+    let idx_x_start = map_to_index(x_start, origin_x, spacing_x, nx);
+    let idx_x_end = map_to_index(x_end, origin_x, spacing_x, nx);
     
-    let idx_y_start = map_to_index(y_start, origin_y, spacing_y, vol_height);
-    let idx_y_end = map_to_index(y_end, origin_y, spacing_y, vol_height);
+    let idx_y_start = map_to_index(y_start, origin_y, spacing_y, ny);
+    let idx_y_end = map_to_index(y_end, origin_y, spacing_y, ny);
     
-    let idx_z_start = map_to_index(z_start, origin_z, spacing_z, vol_depth);
-    let idx_z_end = map_to_index(z_end, origin_z, spacing_z, vol_depth);
+    let idx_z_start = map_to_index(z_start, origin_z, spacing_z, nz);
+    let idx_z_end = map_to_index(z_end, origin_z, spacing_z, nz);
 
-    // 3. Ensure min <= max 
-    let x_min = idx_x_start.min(idx_x_end);
-    let x_max = idx_x_start.max(idx_x_end);
-    let y_min = idx_y_start.min(idx_y_end);
-    let y_max = idx_y_start.max(idx_y_end);
-    let z_min = idx_z_start.min(idx_z_end);
-    let z_max = idx_z_start.max(idx_z_end);
+    let (x0, x1) = (idx_x_start.min(idx_x_end), idx_x_start.max(idx_x_end));
+    let (y0, y1) = (idx_y_start.min(idx_y_end), idx_y_start.max(idx_y_end));
+    let (z0, z1) = (idx_z_start.min(idx_z_end), idx_z_start.max(idx_z_end));
 
-    let volume_x_max = volume.x.len().saturating_sub(1);
-    let volume_y_max = volume.y.len().saturating_sub(1);
-    let volume_z_max = volume.z.len().saturating_sub(1);
-
-    let x0 = x_min.min(x_max).min(volume_x_max);
-    let x1 = x_min.max(x_max).min(volume_x_max);
-    let y0 = y_min.min(y_max).min(volume_y_max);
-    let y1 = y_min.max(y_max).min(volume_y_max);
-    let z0 = z_min.min(z_max).min(volume_z_max);
-    let z1 = z_min.max(z_max).min(volume_z_max);
-
-    if x0 > x1 || y0 > y1 || z0 > z1 {
-        return Err("ROI contains no voxels inside the CT volume".to_string());
-    }
-
-    let nx = volume.x.len();
-    let ny = volume.y.len();
     let stride_xy = nx * ny;
 
     let mut sum = 0.0f64;
@@ -150,7 +119,165 @@ fn get_ct_roi_mean(
     Ok(sum / count as f64)
 }
 
- #[tauri::command]
+#[tauri::command]
+fn get_ct_roi_mean_cylinder(
+    x_center: f64,
+    y_center: f64,
+    radius: f64,
+    z_start: f64,
+    z_end: f64,
+    state: State<'_, AppState>,
+ ) -> Result<f64, String> {
+    let volume = state.volume.as_ref().ok_or_else(|| "No volume data".to_string())?;
+
+    // Calculate the volume of a cylinder: V = π * r^2 * h
+    let nx = volume.x.len();
+    let ny = volume.y.len();
+    let nz = volume.z.len();
+    if nx < 2 || ny < 2 || nz < 2 {
+        return Err("Volume has insufficient data".to_string());
+    }
+
+    let origin_z = volume.z[0];
+
+    let spacing_z = volume.z[1] - volume.z[0];
+
+    let idx_z_start = map_to_index(z_start, origin_z, spacing_z, nz);
+    let idx_z_end = map_to_index(z_end, origin_z, spacing_z, nz);
+
+    let (z0, z1) = (idx_z_start.min(idx_z_end), idx_z_start.max(idx_z_end));
+
+    let stride_xy = nx * ny;
+
+    let mut sum = 0.0f64;
+    let mut count = 0usize;
+
+    for z in z0..=z1 {
+        for y in 0..ny {
+            let row_offset = y * nx + z * stride_xy;
+            for x in 0..nx {
+                let world_x = volume.x[x];
+                let world_y = volume.y[y];
+                let dx = world_x - x_center;
+                let dy = world_y - y_center;
+                if dx * dx + dy * dy <= radius * radius {
+                    let index = row_offset + x;
+                    if let Some(value) = volume.scalars.get(index) {
+                        sum += *value as f64;
+                        count += 1;
+                    }
+                }
+            }
+        }
+    }
+
+    if count == 0 {
+        return Err("ROI contains no voxels".to_string());
+    }
+
+    Ok(sum / count as f64)
+}
+
+#[tauri::command]
+fn get_ct_roi_mean_nodal(
+    points: Vec<[f64; 2]>,
+    z_start: f64,
+    z_end: f64,
+    state: State<'_, AppState>
+) -> Result<f64, String> {
+    if points.len() < 3 {
+        return Err("At least 3 points are required to define a polygon".to_string());
+    }
+
+    let volume = state.volume.as_ref().ok_or_else(|| "No volume data".to_string())?;
+
+    let nx = volume.x.len();
+    let ny = volume.y.len();
+    let nz = volume.z.len();
+    if nx < 2 || ny < 2 || nz < 2 {
+        return Err("Volume has insufficient data".to_string());
+    }
+
+    let origin_x = volume.x[0];
+    let origin_y = volume.y[0];
+    let origin_z = volume.z[0];
+    let spacing_x = volume.x[1] - volume.x[0];
+    let spacing_y = volume.y[1] - volume.y[0];
+    let spacing_z = volume.z[1] - volume.z[0];
+
+    let idx_z_start = map_to_index(z_start, origin_z, spacing_z, nz);
+    let idx_z_end = map_to_index(z_end, origin_z, spacing_z, nz);
+    let (z0, z1) = (idx_z_start.min(idx_z_end), idx_z_start.max(idx_z_end));
+
+    let (mut min_x, mut max_x) = (f64::INFINITY, f64::NEG_INFINITY);
+    let (mut min_y, mut max_y) = (f64::INFINITY, f64::NEG_INFINITY);
+    for point in &points {
+        min_x = min_x.min(point[0]);
+        max_x = max_x.max(point[0]);
+        min_y = min_y.min(point[1]);
+        max_y = max_y.max(point[1]);
+    }
+
+    let idx_x_min = map_to_index(min_x, origin_x, spacing_x, nx);
+    let idx_x_max = map_to_index(max_x, origin_x, spacing_x, nx);
+    let idx_y_min = map_to_index(min_y, origin_y, spacing_y, ny);
+    let idx_y_max = map_to_index(max_y, origin_y, spacing_y, ny);
+    let (x0, x1) = (idx_x_min.min(idx_x_max), idx_x_min.max(idx_x_max));
+    let (y0, y1) = (idx_y_min.min(idx_y_max), idx_y_min.max(idx_y_max));
+
+    let mut inside_polygon: Vec<(usize, usize)>= Vec::new();
+    for y in y0..=y1 {
+        let wy = volume.y[y];
+        for x in x0..=x1 {
+            let wx = volume.x[x];
+            let mut inside = false;
+            let n = &points.len();
+            let mut j = n - 1;
+            for i in 0..*n {
+                let (xi, yi) = (points[i][0], points[i][1]);
+                let (xj, yj) = (points[j][0], points[j][1]);
+                if ((yi > wy) != (yj > wy)) {
+                    let x_intersect = (xj - xi) * (wy - yi) / (yj - yi) + xi;
+                    if wx < x_intersect {
+                        inside = !inside;
+                    }
+                }
+                j = i;
+            }
+            if inside {
+                inside_polygon.push((x, y));
+            }
+        }
+    }
+
+    if inside_polygon.is_empty() {
+        return Err("No voxels found inside the polygon".to_string());
+    }
+
+    let stride_xy = nx * ny;
+    let mut sum = 0.0f64;
+    let mut count = 0usize;
+
+    for z in z0..=z1 {
+        let z_offset = z * stride_xy;
+        for &(x, y) in &inside_polygon {
+            let index = z_offset + y * nx + x;
+            if let Some(value) = volume.scalars.get(index) {
+                sum += *value as f64;
+                count += 1;
+            }
+        }
+    }
+
+    if count == 0 {
+        return Err("No voxels found inside the polygon".to_string());
+    }
+
+    Ok(sum / count as f64)
+}
+
+
+#[tauri::command]
 fn get_view_mode(state: State<'_, AppState>) -> Result<String, String> {
     if state.mesh_ct_data.is_some() {
         Ok("mesh_ct".to_string())
@@ -262,6 +389,8 @@ fn build_tauri_app(app_state: AppState, config: &VisualisationConfig) -> Result<
              get_view_mode,
              get_ct_slice,
              get_ct_roi_mean,
+             get_ct_roi_mean_cylinder,
+             get_ct_roi_mean_nodal,
              get_mesh_metadata,
              get_mesh_vertices,
              get_mesh_faces,

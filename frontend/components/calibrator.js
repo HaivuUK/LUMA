@@ -701,14 +701,14 @@ export class CalibrationManager {
 
             if (roi.shape === 'cylinder') {
                 meanHU = await invoke('get_ct_roi_mean_cylinder', {
-                    centerX: roi.cx,
-                    centerY: roi.cy,
+                    xCenter: roi.cx,
+                    yCenter: roi.cy,
                     radius: roi.radius,
                     zStart: Math.min(roi.z.start, roi.z.end),
                     zEnd: Math.max(roi.z.start, roi.z.end),
                 });
             } else if (roi.shape === 'nodal') {
-                meanHU = await invoke('get_ct_roi_mean_polygon', {
+                meanHU = await invoke('get_ct_roi_mean_nodal', {
                     points: roi.nodes.map(node => [node.x, node.y]),
                     zStart: Math.min(roi.z.start, roi.z.end),
                     zEnd: Math.max(roi.z.start, roi.z.end)
