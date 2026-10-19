@@ -34,15 +34,15 @@
 **Authors:** George H Allison<sup>1,2</sup>
 
 **Affiliation:** 
-<sup>1</sup> [INSIGNEO Institute, University of Sheffield, United Kingdom](https://www.sheffield.ac.uk/insigneo); 
+<sup>1</sup> [Insigneo Institute for Healthcare Technology, University of Sheffield, United Kingdom](https://www.sheffield.ac.uk/insigneo); 
 <sup>2</sup> [School of Mechanical, Aerospace & Civil Engineering, University of Sheffield, United Kingdom](https://www.sheffield.ac.uk/mecheng)
 
 **Contact:** 
 GHA ([Email](mailto:GHAllison1@sheffield.ac.uk) | [LinkedIn](https://www.linkedin.com/in/george-h-allison/)), 
 Dr X. Li ([Email](mailto:xinshan.li@sheffield.ac.uk))
 
-This tool was developed in the [IMSB](https://www.sheffield.ac.uk/imsb) group at the [Insigneo Institute](https://www.sheffield.ac.uk/insigneo) at [the University of Sheffield](https://www.sheffield.ac.uk/), UK.
-Please visit the [Insigneo Institute GitHub page](https://github.com/INSIGNEO) for more information on other projects and research.
+This tool was developed in the [IMSB](https://www.sheffield.ac.uk/imsb) group at the [Insigneo Institute for Healthcare Technology](https://www.sheffield.ac.uk/insigneo) at [the University of Sheffield](https://www.sheffield.ac.uk/), UK.
+Please visit the [Insigneo Institute for Healthcare Technology GitHub page](https://github.com/INSIGNEO) for more information on other projects and research.
 
 If you use this software in your research, please cite the [LUMA citation file](https://github.com/HaivuUK/LUMA/blob/main/CITATION.cff).
 
@@ -96,27 +96,42 @@ cargo build --release
 
 ## Quick Start
 
+LUMA operates as a command line tool predominantly, but also has a GUI for users that prefer a visual interface.
+LUMAs UI elements are built with 
+[egui](https://github.com/emilk/egui), 
+[bevy_egui](https://github.com/abey79/bevy_egui),
+and [bevy](https://github.com/bevyengine/bevy).
+
+### GUI
+
+The GUI is launchable from the application menu, shortcut, or by running the command `luma --gui` in a terminal.
+
+### CLI
+
+The command line interface is accessible from the terminal by running the command `luma` with the appropriate flags and arguments.
+If this does not work, please ensure that the LUMA binary is in your system path.
+
 See the commands with LUMA's help flag:
 ```bash
 luma -h
 ```
 
-### Basic Material Assignment
+#### Basic Material Assignment
 ```bash
 luma --params example_parameters.toml --ct example_ct_data.vtk --mesh example_mesh.inp
 ```
 
-### 3D Visualisation
+#### 3D Visualisation
 ```bash
 luma --visualise align --ct scan.vtk --mesh bone.inp
 ```
 
-### Material Assignment Visualisation
+#### Material Assignment Visualisation
 ```bash
 luma --visualise processed --params parameters.toml --ct scan.vtk --mesh bone.inp
 ```
 
-### With Mesh Transformation
+#### With Mesh Transformation
 ```bash
 luma --params parameters.toml --ct scan.vtk --mesh bone.cdb --rot 180.0 0.0 0.0 --trans 0.0 0.0 10.0
 ```
@@ -138,11 +153,7 @@ The core functionality assigns material properties to finite element meshes base
 
 ### Project Structure
 ```
-frontend/
-├── components/               # Javascript components for UI functionality
-├── styling/                  # CSS files for UI styling
-├── favicon.ico               # Icon
-└── index.html                # Main html script for creating UI
+
 src/
 ├── lib.rs                    # Main library interface
 ├── main.rs                   # Command line application
