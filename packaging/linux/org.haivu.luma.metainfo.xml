@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+    <id>org.haivu.luma</id>
+    <name>LUMA</name>
+    <summary>One-line description of LUMA</summary>
+    <metadata_license>CC0-1.0</metadata_license>
+    <project_license>LicenseRef-proprietary</project_license>
+    <description>
+        <p>Longer description of LUMA.</p>
+    </description>
+    <launchable type="desktop-id">org.haivu.luma.desktop</launchable>
+    <provides><binary>luma</binary></provides>
+    <content_rating type="oars-1.1" />
+    <releases>
+        <release version="@VERSION@" date="@DATE@" />
+    </releases>
+</component>

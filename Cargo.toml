@@ -6,6 +6,7 @@ license = "AGPL-3.0-or-later"
 description = "Rust tool to assign bone material properties to finite element meshes from CT data"
 repository = "https://github.com/INSIGNEO/LUMA"
 authors = ["George Allison", "Haivu"]
+license-file = "LICENSE"
 
 [package.metadata.dist]
 
@@ -66,11 +67,17 @@ nifti = { version = "0.18", features = ["ndarray_volumes", "nalgebra_affine"] }
 nalgebra = "0.35" # NIfTI package limits us to 0.35
 flate2 = "1"
 bzip2 = "0.6"
+ureq = { version = "3", default-features = false, features = ["json"] }
+semver = "1"
+open = "5"
 
 [dev-dependencies]
 tempfile = "3"
 assert_cmd = "2"
 predicates = "3"
+
+[build-dependencies]
+winresource = "0.1"
 
 [[bin]]
 name = "luma"
@@ -90,3 +97,40 @@ panic = "abort"
 [profile.dist]
 inherits = "release"
 lto = "thin"
+
+# ------------------------------------------------------------------ .deb
+[package.metadata.deb]
+name = "luma"
+maintainer = "George Allison <george.allison@example.com>"
+copyright = "2026, George Allison"
+license-file = ["LICENSE.txt", "0"]
+extended-description = "Longer description of My App."
+section = "utils"
+priority = "optional"
+# $auto = libs found via ldd (libasound2, libudev1, ...); the rest are dlopen()ed by winit/wgpu
+depends = "$auto, libvulkan1, libx11-6, libxkbcommon0, libxkbcommon-x11-0, libwayland-client0"
+assets = [
+    ["target/release/luma", "usr/bin/", "755"],
+    ["packaging/linux/org.haivu.luma.desktop", "usr/share/applications/", "644"],
+    ["target/linux/icon-256.png", "usr/share/icons/hicolor/256x256/apps/luma.png", "644"],
+    ["target/linux/icon-512.png", "usr/share/icons/hicolor/512x512/apps/luma.png", "644"],
+    ["target/linux/org.haivu.luma.metainfo.xml", "usr/share/metainfo/", "644"],
+]
+
+# ------------------------------------------------------------------ .rpm
+[package.metadata.generate-rpm]
+assets = [
+    { source = "target/release/luma", dest = "/usr/bin/luma", mode = "0755" },
+    { source = "packaging/linux/org.haivu.luma.desktop", dest = "/usr/share/applications/org.haivu.luma.desktop", mode = "0644" },
+    { source = "target/linux/icon-256.png", dest = "/usr/share/icons/hicolor/256x256/apps/luma.png", mode = "0644" },
+    { source = "target/linux/icon-512.png", dest = "/usr/share/icons/hicolor/512x512/apps/luma.png", mode = "0644" },
+    { source = "target/linux/org.haivu.luma.metainfo.xml", dest = "/usr/share/metainfo/org.haivu.luma.metainfo.xml", mode = "0644" },
+    { source = "LICENSE.txt", dest = "/usr/share/licenses/luma/LICENSE.txt", mode = "0644" },
+]
+[package.metadata.generate-rpm.requires]
+alsa-lib = "*"
+systemd-libs = "*"
+vulkan-loader = "*"
+libxkbcommon = "*"
+libwayland-client = "*"
+libX11 = "*"

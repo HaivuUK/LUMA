@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- WiX v5. Variables come from `wix build -d`: AppName Publisher Version ExePath IconPath LicenseRtf -->
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs"
+     xmlns:ui="http://wixtoolset.org/schemas/v4/wxs/ui">
+  <Package Name="$(var.AppName)" Manufacturer="$(var.Publisher)" Version="$(var.Version)"
+           UpgradeCode="6F0C1B7E-3A52-4D8B-9C41-2E7A5B1D9F30" Scope="perMachine" Compressed="yes">
+    <!-- ^ generate your own UpgradeCode once and never change it -->
+
+    <MajorUpgrade DowngradeErrorMessage="A newer version of [ProductName] is already installed." />
+    <MediaTemplate EmbedCab="yes" />
+
+    <Icon Id="AppIcon.ico" SourceFile="$(var.IconPath)" />
+    <Property Id="ARPPRODUCTICON" Value="AppIcon.ico" />
+    <WixVariable Id="WixUILicenseRtf" Value="$(var.LicenseRtf)" />
+
+    <StandardDirectory Id="ProgramFiles64Folder">
+      <Directory Id="INSTALLFOLDER" Name="$(var.AppName)" />
+    </StandardDirectory>
+
+    <Feature Id="Main" Title="$(var.AppName)" Level="1">
+      <Component Id="AppExe" Directory="INSTALLFOLDER" Guid="*">
+        <File Id="AppExeFile" Source="$(var.ExePath)" KeyPath="yes">
+          <!-- Start Menu > Programs shortcut -->
+          <Shortcut Id="StartMenuShortcut" Directory="ProgramMenuFolder" Name="$(var.AppName)"
+                    WorkingDirectory="INSTALLFOLDER" Icon="AppIcon.ico" />
+        </File>
+      </Component>
+
+      <!-- Adds the install folder to the system PATH so the CLI works -->
+      <Component Id="PathEntry" Directory="INSTALLFOLDER" Guid="*">
+        <RegistryValue Root="HKLM" Key="Software\$(var.Publisher)\$(var.AppName)"
+                       Name="PathEntry" Type="integer" Value="1" KeyPath="yes" />
+        <Environment Id="AddToPath" Name="PATH" Value="[INSTALLFOLDER]"
+                     Action="set" Part="last" System="yes" Permanent="no" />
+      </Component>
+    </Feature>
+
+    <!-- Welcome -> License (from LICENSE.txt) -> Install folder -> Install -->
+    <ui:WixUI Id="WixUI_InstallDir" InstallDirectory="INSTALLFOLDER" />
+  </Package>
+</Wix>

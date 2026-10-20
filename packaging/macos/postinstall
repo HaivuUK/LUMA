@@ -1,0 +1,5 @@
+#!/bin/bash
+# Runs as root after the .pkg payload is installed: put the app on the command line.
+mkdir -p /usr/local/bin
+ln -sf "/Applications/@APP_DISPLAY@.app/Contents/MacOS/@APP_NAME@" "/usr/local/bin/@APP_NAME@"
+exit 0
