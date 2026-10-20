@@ -19,122 +19,158 @@ env:
 
 jobs:
   # ---------------------------------------------------------------------------
-  # Linux (x86_64) - Standard egui build + Tarball packaging
+  # Version Extraction Job
+  # ---------------------------------------------------------------------------
+  version:
+    name: Resolve Version
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.get_version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: get_version
+        run: |
+          VERSION=$(sed -n 's/^version = "\(.*\)"/\1/p' Cargo.toml | head -n 1)
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Resolved Version: $VERSION"
+
+  # ---------------------------------------------------------------------------
+  # Linux Job (deb, rpm, AppImage, tar.gz)
   # ---------------------------------------------------------------------------
   build-linux:
-    name: Linux (${{ matrix.target }})
+    name: Linux Packages (x86_64)
+    needs: version
     runs-on: ubuntu-22.04
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - target: x86_64-unknown-linux-gnu
-            arch: x86_64
-
+    env:
+      VERSION: ${{ needs.version.outputs.version }}
+      NFPM_VERSION: "2.35.1"
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
 
-      - name: Install Linux egui Dependencies
+      - name: Install Linux egui & Packaging Dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
-            build-essential pkg-config libx11-dev libxcursor-dev \
-            libxrandr-dev libxi-dev libxinerama-dev libxkbcommon-dev \
-            libgl1-mesa-dev libwayland-dev libgtk-3-dev libssl-dev
+            build-essential pkg-config \
+            libx11-dev libxcursor-dev libxrandr-dev libxi-dev libxinerama-dev \
+            libxkbcommon-dev libgl1-mesa-dev libwayland-dev libgtk-3-dev libssl-dev \
+            libasound2-dev libudev-dev rpm
+
+      - name: Install nFPM (for .deb & .rpm)
+        run: |
+          curl -fsSL -o "$RUNNER_TEMP/nfpm.deb" \
+            "https://github.com/goreleaser/nfpm/releases/download/v${NFPM_VERSION}/nfpm_${NFPM_VERSION}_amd64.deb"
+          sudo dpkg -i "$RUNNER_TEMP/nfpm.deb"
 
       - name: Setup Rust Toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
-          targets: ${{ matrix.target }}
+          targets: x86_64-unknown-linux-gnu
 
       - name: Rust Cache
         uses: Swatinem/rust-cache@v2
         with:
-          key: ${{ matrix.target }}
+          key: linux-x86_64
 
       - name: Build Release Binary
-        run: cargo build --release --target ${{ matrix.target }}
+        run: cargo build --release --target x86_64-unknown-linux-gnu
 
-      - name: Package Tarball (Binary in bin/ for PATH usage)
+      - name: Build .deb and .rpm Packages
         run: |
-          APP_NAME="luma"
-          DIST_DIR="dist-linux"
-          mkdir -p ${DIST_DIR}/bin
+          nfpm pkg --config packaging/linux/nfpm.yaml --packager deb --target "dist/luma_${VERSION}_x86_64.deb"
+          nfpm pkg --config packaging/linux/nfpm.yaml --packager rpm --target "dist/luma_${VERSION}_x86_64.rpm"
+
+      - name: Build .AppImage Package
+        run: |
+          mkdir -p AppDir/usr/bin AppDir/usr/share/applications AppDir/usr/share/icons/hicolor/256x256/apps
+          cp target/x86_64-unknown-linux-gnu/release/luma AppDir/usr/bin/luma
           
-          # Place binary inside bin/ so extracting to /usr/local or ~/.local puts it on PATH
-          cp target/${{ matrix.target }}/release/${APP_NAME} ${DIST_DIR}/bin/
+          # Create Desktop Entry
+          cat << EOF > AppDir/usr/share/applications/luma.desktop
+          [Desktop Entry]
+          Name=Luma
+          Exec=luma
+          Icon=luma
+          Type=Application
+          Categories=Utility;
+          Terminal=false
+          EOF
           
-          tar -czvf ${APP_NAME}-${{ matrix.arch }}-linux.tar.gz -C ${DIST_DIR} bin/
+          cp AppDir/usr/share/applications/luma.desktop AppDir/luma.desktop
+          ln -s usr/bin/luma AppDir/AppRun
+          
+          # Download AppImageTool
+          wget -q https://github.com/AppImage/AppImageKit/releases/download/13/appimagetool-x86_64.AppImage -O appimagetool
+          chmod +x appimagetool
+          ./appimagetool --appimage-extract-and-run AppDir "dist/luma_${VERSION}_x86_64.AppImage"
+
+      - name: Create Linux Tarball (for Flatpak & CLI fallback)
+        run: |
+          mkdir -p dist-tar/bin
+          cp target/x86_64-unknown-linux-gnu/release/luma dist-tar/bin/
+          tar -czvf "dist/luma_${VERSION}_x86_64.tar.gz" -C dist-tar bin/
 
       - name: Upload Linux Artifacts
         uses: actions/upload-artifact@v7
         with:
-          name: release-linux-${{ matrix.arch }}
-          path: |
-            target/${{ matrix.target }}/release/luma
-            *.tar.gz
+          name: release-linux-x86_64
+          path: dist/*
 
   # ---------------------------------------------------------------------------
   # Flatpak Packaging Job
   # ---------------------------------------------------------------------------
   build-flatpak:
-    name: Flatpak (${{ matrix.arch }})
-    needs: [build-linux]
+    name: Flatpak (x86_64)
+    needs: [version, build-linux]
     runs-on: ubuntu-24.04
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - arch: x86_64
-            runner: ubuntu-24.04
-
+    env:
+      VERSION: ${{ needs.version.outputs.version }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
 
-      - name: Download Linux Artifacts
-        uses: actions/download-artifact@v7
+      - name: Download Linux Tarball
+        uses: actions/download-artifact@v4
         with:
-          name: release-linux-${{ matrix.arch }}
+          name: release-linux-x86_64
           path: dist/linux
 
-      - name: Install Flatpak Builder & Tooling
+      - name: Install Flatpak Builder
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends flatpak flatpak-builder librsvg2-common
-          # Unprivileged user namespaces fix for Ubuntu 24.04 runners
           sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0 || true
 
       - name: Build Flatpak Bundle
         run: |
+          mkdir -p dist/release
           if [ -f "packaging/linux/flatpak-bundle.sh" ]; then
-            bash packaging/linux/flatpak-bundle.sh "dist/linux/luma-x86_64-linux.tar.gz"
-          else
-            echo "::warning::packaging/linux/flatpak-bundle.sh not found. Run custom flatpak build commands here."
+            bash packaging/linux/flatpak-bundle.sh "dist/linux/luma_${VERSION}_x86_64.tar.gz" "dist/release/luma_${VERSION}_x86_64.flatpak"
           fi
 
       - name: Upload Flatpak Artifacts
         uses: actions/upload-artifact@v7
         with:
-          name: release-flatpak-${{ matrix.arch }}
+          name: release-flatpak-x86_64
           path: dist/release/*.flatpak
           if-no-files-found: warn
 
   # ---------------------------------------------------------------------------
-  # macOS Job - Runs custom build script (creates .pkg / .dmg)
+  # macOS Job
   # ---------------------------------------------------------------------------
   build-macos:
     name: macOS (${{ matrix.name }})
+    needs: version
     runs-on: macos-14
     strategy:
       fail-fast: false
       matrix:
         include:
           - target: aarch64-apple-darwin
-            name: macos-arm64
+            name: arm64
           - target: x86_64-apple-darwin
-            name: macos-x86_64
+            name: x64
 
     steps:
       - name: Checkout repository
@@ -150,7 +186,7 @@ jobs:
         with:
           key: ${{ matrix.target }}
 
-      - name: Run macOS custom build script (.pkg creation)
+      - name: Build macOS Installer Package
         run: |
           chmod +x buildscripts/macOS/build-mac.sh
           ./buildscripts/macOS/build-mac.sh ${{ matrix.target }}
@@ -158,26 +194,20 @@ jobs:
       - name: Upload macOS Artifacts
         uses: actions/upload-artifact@v7
         with:
-          name: release-${{ matrix.name }}
+          name: release-macos-${{ matrix.name }}
           path: |
             *.pkg
-            *.dmg
-            target/${{ matrix.target }}/release/luma
-          if-no-files-found: warn
+            *.app.tar.gz
 
   # ---------------------------------------------------------------------------
-  # Windows Job
+  # Windows Job (.msi and -setup.exe)
   # ---------------------------------------------------------------------------
   build-windows:
-    name: Windows (${{ matrix.name }})
+    name: Windows (x64)
+    needs: version
     runs-on: windows-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - target: x86_64-pc-windows-msvc
-            name: windows-x86_64
-
+    env:
+      VERSION: ${{ needs.version.outputs.version }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
@@ -185,58 +215,58 @@ jobs:
       - name: Setup Rust Toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
-          targets: ${{ matrix.target }}
+          targets: x86_64-pc-windows-msvc
 
       - name: Rust Cache
         uses: Swatinem/rust-cache@v2
         with:
-          key: ${{ matrix.target }}
+          key: windows-x64
 
-      - name: Build Release Binary
-        run: cargo build --release --target ${{ matrix.target }}
-
-      - name: Package Zip Archive
+      - name: Install WiX Toolset
         shell: pwsh
         run: |
-          Compress-Archive -Path target/${{ matrix.target }}/release/luma.exe -DestinationPath luma-windows-x86_64.zip
+          dotnet tool install --global wix --version 5.0.2
+
+      - name: Build Release Binary
+        run: cargo build --release --target x86_64-pc-windows-msvc
+
+      - name: Build MSI Installer
+        shell: pwsh
+        run: |
+          wix build packaging/windows/luma.wxs -d Version="${env:VERSION}" -o "dist/luma_${env:VERSION}_x64_en-US.msi"
+
+      - name: Build Setup EXE Installer (NSIS)
+        shell: pwsh
+        run: |
+          makensis /DVERSION="${env:VERSION}" packaging/windows/installer.nsi
 
       - name: Upload Windows Artifacts
         uses: actions/upload-artifact@v7
         with:
-          name: release-${{ matrix.name }}
-          path: |
-            luma-windows-x86_64.zip
-            target/${{ matrix.target }}/release/luma.exe
-          if-no-files-found: warn
+          name: release-windows-x64
+          path: dist/*
 
   # ---------------------------------------------------------------------------
-  # Release Publishing
+  # GitHub Release Job
   # ---------------------------------------------------------------------------
   release:
-    name: Create GitHub Release
-    needs: [build-linux, build-flatpak, build-macos, build-windows]
+    name: Publish Release
+    needs: [version, build-linux, build-flatpak, build-macos, build-windows]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
 
-      - name: Extract version from Cargo.toml
-        id: get_version
-        run: |
-          VERSION=$(grep '^version = ' Cargo.toml | head -n 1 | cut -d '"' -f 2)
-          echo "VERSION=v$VERSION" >> $GITHUB_OUTPUT
-          echo "Extracted Version: v$VERSION"
-
-      - name: Download all build artifacts
+      - name: Download all artifacts
         uses: actions/download-artifact@v7
         with:
           path: ./downloaded-artifacts
 
-      - name: Create GitHub Release
+      - name: Create Draft Release
         uses: softprops/action-gh-release@v3
         with:
-          tag_name: ${{ steps.get_version.outputs.VERSION }}
-          name: Luma ${{ steps.get_version.outputs.VERSION }}
+          tag_name: v${{ needs.version.outputs.version }}
+          name: Luma v${{ needs.version.outputs.version }}
           draft: ${{ github.event.inputs.draft || true }}
           prerelease: false
           files: |

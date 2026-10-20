@@ -5,52 +5,94 @@ set -e
 
 APP_NAME="luma"
 
-# Read target from the workflow argument, fallback to arm64 (Apple Silicon)
-TARGET=${1:-${TARGET:-aarch64-apple-darwin}}
+# Read target from argument, default to Apple Silicon (aarch64-apple-darwin)
+TARGET=${1:-aarch64-apple-darwin}
 
-# Extract version from tauri.conf.json using jq
-VERSION=$(jq -r '.version' tauri.conf.json)
+# Extract version from Cargo.toml
+VERSION=$(sed -n 's/^version = "\(.*\)"/\1/p' Cargo.toml | head -n 1)
 
-# Determine the architecture suffix to match your other files
+if [ -z "$VERSION" ]; then
+    echo "Error: Could not extract version from Cargo.toml"
+    exit 1
+fi
+
+# Determine architecture identifier
 if [[ "$TARGET" == *"aarch64"* ]]; then
-    ARCH="aarch64"
+    ARCH="arm64"
 else
-    ARCH="x64"
+    ARCH="x86_64"
 fi
 
-echo "Compiling Tauri app bundle for $TARGET..."
-cargo tauri build --target "$TARGET"
+echo "Compiling native egui binary for $TARGET (v$VERSION)..."
+cargo build --release --target "$TARGET"
 
-# Check for target directory
-if [ -d "target/$TARGET/release/bundle/macos" ]; then
-    TARGET_DIR="target/$TARGET/release/bundle/macos"
-elif [ -d "src-tauri/target/$TARGET/release/bundle/macos" ]; then
-    TARGET_DIR="src-tauri/target/$TARGET/release/bundle/macos"
-else
-    echo "Error: Release bundle directory not found for target $TARGET."
+BINARY_PATH="target/$TARGET/release/$APP_NAME"
+
+if [ ! -f "$BINARY_PATH" ]; then
+    echo "Error: Release binary not found at $BINARY_PATH"
     exit 1
 fi
 
-# Check to ensure the bundle actually built
-if [ ! -d "$TARGET_DIR/$APP_NAME.app" ]; then
-    echo "Error: App bundle not found at $TARGET_DIR/$APP_NAME.app"
-    exit 1
+echo "Creating macOS .app bundle structure..."
+APP_BUNDLE="${APP_NAME}.app"
+rm -rf "$APP_BUNDLE"
+mkdir -p "$APP_BUNDLE/Contents/MacOS"
+mkdir -p "$APP_BUNDLE/Contents/Resources"
+
+# Copy binary into bundle
+cp "$BINARY_PATH" "$APP_BUNDLE/Contents/MacOS/$APP_NAME"
+chmod +x "$APP_BUNDLE/Contents/MacOS/$APP_NAME"
+
+if [ -d "assets" ]; then
+    cp -r "assets" "$APP_BUNDLE/Contents/Resources/assets"
 fi
+
+# Copy icon file if present
+if [ -f "assets/icon.icns" ]; then
+    cp "assets/icon.icns" "$APP_BUNDLE/Contents/Resources/icon.icns"
+fi
+
+# Generate Info.plist required for macOS app bundle
+cat << EOF > "$APP_BUNDLE/Contents/Info.plist"
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CFBundleExecutable</key>
+    <string>${APP_NAME}</string>
+    <key>CFBundleIdentifier</key>
+    <string>com.luma.${APP_NAME}</string>
+    <key>CFBundleName</key>
+    <string>${APP_NAME}</string>
+    <key>CFBundlePackageType</key>
+    <string>APPL</string>
+    <key>CFBundleShortVersionString</key>
+    <string>${VERSION}</string>
+    <key>CFBundleVersion</key>
+    <string>${VERSION}</string>
+    <key>LSMinimumSystemVersion</key>
+    <string>10.13</string>
+    <key>NSHighResolutionCapable</key>
+    <true/>
+</dict>
+</plist>
+EOF
 
 echo "Archiving .app bundle into compressed tarball..."
-tar -czf "${APP_NAME}_${VERSION}_${ARCH}.app.tar.gz" -C "$TARGET_DIR" "$APP_NAME.app"
+tar -czf "${APP_NAME}_${VERSION}_${ARCH}.app.tar.gz" "$APP_BUNDLE"
 
-echo "Temporary payload root folder..."
+echo "Setting up temporary payload root for PKG..."
+rm -rf ./pkg_payload
 mkdir -p ./pkg_payload
-cp -r "$TARGET_DIR/$APP_NAME.app" ./pkg_payload/
+cp -r "$APP_BUNDLE" ./pkg_payload/
 
-echo "Generating component config..."
+echo "Generating component configuration..."
 pkgbuild --analyze --root ./pkg_payload components.plist
 
-# Disable bundle relocation behavior so it forces install into /Applications
+# Force install strictly into /Applications (disable relocatable behavior)
 plutil -replace BundleIsRelocatable -bool false components.plist
 
-echo "Setting up postinstall script..."
+echo "Setting up postinstall script for terminal PATH symlink..."
 mkdir -p installer/scripts
 cat << 'EOF' > installer/scripts/postinstall
 #!/bin/bash
@@ -68,7 +110,7 @@ chmod +x installer/scripts/postinstall
 
 PKG_NAME="${APP_NAME}_${VERSION}_${ARCH}_Installer.pkg"
 
-echo "Building non-relocatable installer: $PKG_NAME"
+echo "Building installer package: $PKG_NAME"
 pkgbuild \
   --root ./pkg_payload \
   --install-location "/Applications" \
@@ -76,8 +118,7 @@ pkgbuild \
   --scripts "installer/scripts" \
   "$PKG_NAME"
 
-echo "Cleaning up..."
-rm -rf ./pkg_payload
-rm components.plist
+echo "Cleaning up temporary build files..."
+rm -rf ./pkg_payload components.plist installer/ "$APP_BUNDLE"
 
-echo "Fixed package built: ${APP_NAME}."
+echo "Package build complete: $PKG_NAME"
