@@ -11,7 +11,6 @@ Page instfiles
 Section "Install"
     SetOutPath "$INSTDIR"
     File "..\..\target\x86_64-pc-windows-msvc\release\luma.exe"
-    File /r "..\..\assets"
     WriteUninstaller "$INSTDIR\uninstall.exe"
 
     # Add installation directory to System PATH

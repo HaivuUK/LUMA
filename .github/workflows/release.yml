@@ -239,13 +239,13 @@ jobs:
       - name: Build MSI Installer
         shell: pwsh
         run: |
-          mkdir -p dist
+          New-Item -ItemType Directory -Force -Path dist
           wix build packaging/windows/luma.wxs -d Version="${env:VERSION}" -o "dist/luma_${env:VERSION}_x64_en-US.msi"
 
       - name: Build Setup EXE Installer (NSIS)
         shell: pwsh
         run: |
-          mkdir -p dist
+          New-Item -ItemType Directory -Force -Path dist
           makensis /DVERSION="${env:VERSION}" packaging/windows/installer.nsi
 
       - name: Upload Windows Artifacts

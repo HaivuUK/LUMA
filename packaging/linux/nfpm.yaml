@@ -13,5 +13,3 @@ contents:
     dst: "/usr/bin/luma"
     file_info:
       mode: 0755
-  - src: "assets/**/*"
-    dst: "/usr/share/luma/assets/"
