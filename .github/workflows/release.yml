@@ -108,7 +108,7 @@ jobs:
         with:
           name: pkg-linux
           path: dist/*
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: flatpak-stage
           path: target/flatpak/
@@ -123,7 +123,7 @@ jobs:
       image: ghcr.io/flathub-infra/flatpak-github-actions:freedesktop-24.08
       options: --privileged
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v7
         with:
           name: flatpak-stage
           path: stage
@@ -134,7 +134,7 @@ jobs:
           manifest-path: stage/${{ env.APP_ID }}.yml
           arch: x86_64
           cache-key: flatpak-${{ github.sha }}
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: pkg-flatpak
           path: "*.flatpak"
@@ -188,7 +188,7 @@ jobs:
       - name: Package (.app.zip, .dmg, .pkg)
         run: bash packaging/macos/build-macos.sh "$VERSION" "target/universal/$APP_NAME" dist
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: pkg-macos
           path: dist/*
@@ -258,5 +258,6 @@ jobs:
         with:
           tag_name: v${{ needs.meta.outputs.version }}
           name: v${{ needs.meta.outputs.version }}
+          draft: true
           generate_release_notes: true
           files: dist/*
