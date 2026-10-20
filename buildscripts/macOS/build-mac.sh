@@ -1,14 +1,9 @@
 #!/bin/bash
 
-# Exit immediately if any command fails
 set -e
 
 APP_NAME="luma"
-
-# Read target from argument, default to Apple Silicon (aarch64-apple-darwin)
 TARGET=${1:-aarch64-apple-darwin}
-
-# Extract version from Cargo.toml
 VERSION=$(sed -n 's/^version = "\(.*\)"/\1/p' Cargo.toml | head -n 1)
 
 if [ -z "$VERSION" ]; then
@@ -16,7 +11,6 @@ if [ -z "$VERSION" ]; then
     exit 1
 fi
 
-# Determine architecture identifier
 if [[ "$TARGET" == *"aarch64"* ]]; then
     ARCH="arm64"
 else
@@ -33,28 +27,19 @@ if [ ! -f "$BINARY_PATH" ]; then
     exit 1
 fi
 
-echo "Constructing macOS .app bundle..."
 APP_BUNDLE="${APP_NAME}.app"
 rm -rf "$APP_BUNDLE"
 mkdir -p "$APP_BUNDLE/Contents/MacOS"
 mkdir -p "$APP_BUNDLE/Contents/Resources"
 
-# Copy binary into bundle
 cp "$BINARY_PATH" "$APP_BUNDLE/Contents/MacOS/$APP_NAME"
 chmod +x "$APP_BUNDLE/Contents/MacOS/$APP_NAME"
 
-# Copy assets directory if present (required for Bevy/bevy_egui)
-if [ -d "assets" ]; then
-    cp -r "assets" "$APP_BUNDLE/Contents/Resources/assets"
-    cp -r "assets" "$APP_BUNDLE/Contents/MacOS/assets"
+# Copy icon file from icons/ icon directory
+if [ -f "icons/icon.icns" ]; then
+    cp "icons/icon.icns" "$APP_BUNDLE/Contents/Resources/icon.icns"
 fi
 
-# Copy icon if present
-if [ -f "assets/icon.icns" ]; then
-    cp "assets/icon.icns" "$APP_BUNDLE/Contents/Resources/icon.icns"
-fi
-
-# Generate Info.plist
 cat << EOF > "$APP_BUNDLE/Contents/Info.plist"
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -62,6 +47,8 @@ cat << EOF > "$APP_BUNDLE/Contents/Info.plist"
 <dict>
     <key>CFBundleExecutable</key>
     <string>${APP_NAME}</string>
+    <key>CFBundleIconFile</key>
+    <string>icon.icns</string>
     <key>CFBundleIdentifier</key>
     <string>com.luma.${APP_NAME}</string>
     <key>CFBundleName</key>
@@ -80,13 +67,13 @@ cat << EOF > "$APP_BUNDLE/Contents/Info.plist"
 </plist>
 EOF
 
-echo "1/3 Creating compressed .app bundle (.app.tar.gz)..."
+echo "1/3 Creating compressed .app bundle..."
 tar -czf "${APP_NAME}_${VERSION}_${ARCH}.app.tar.gz" "$APP_BUNDLE"
 
-echo "2/3 Creating DMG installer (.dmg)..."
+echo "2/3 Creating DMG installer..."
 hdiutil create -volname "${APP_NAME}" -srcfolder "$APP_BUNDLE" -ov -format UDZO "${APP_NAME}_${VERSION}_${ARCH}.dmg"
 
-echo "3/3 Creating PKG installer with PATH symlink (.pkg)..."
+echo "3/3 Creating PKG installer with PATH symlink..."
 rm -rf ./pkg_payload
 mkdir -p ./pkg_payload
 cp -r "$APP_BUNDLE" ./pkg_payload/
@@ -118,10 +105,4 @@ pkgbuild \
   --scripts "installer/scripts" \
   "$PKG_NAME"
 
-echo "Cleaning up temporary files..."
 rm -rf ./pkg_payload components.plist installer/ "$APP_BUNDLE"
-
-echo "macOS deliverables built successfully:"
-echo " - ${APP_NAME}_${VERSION}_${ARCH}.app.tar.gz"
-echo " - ${APP_NAME}_${VERSION}_${ARCH}.dmg"
-echo " - ${PKG_NAME}"

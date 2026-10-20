@@ -13,3 +13,7 @@ contents:
     dst: "/usr/bin/luma"
     file_info:
       mode: 0755
+  - src: "icons/icon.png"
+    dst: "/usr/share/icons/hicolor/256x256/apps/luma.png"
+  - src: "AppDir/usr/share/applications/luma.desktop"
+    dst: "/usr/share/applications/luma.desktop"
