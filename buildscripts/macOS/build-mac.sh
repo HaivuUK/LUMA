@@ -23,7 +23,7 @@ else
     ARCH="x86_64"
 fi
 
-echo "Compiling native egui binary for $TARGET (v$VERSION)..."
+echo "Compiling native binary for $TARGET (v$VERSION)..."
 cargo build --release --target "$TARGET"
 
 BINARY_PATH="target/$TARGET/release/$APP_NAME"
@@ -33,7 +33,7 @@ if [ ! -f "$BINARY_PATH" ]; then
     exit 1
 fi
 
-echo "Creating macOS .app bundle structure..."
+echo "Constructing macOS .app bundle..."
 APP_BUNDLE="${APP_NAME}.app"
 rm -rf "$APP_BUNDLE"
 mkdir -p "$APP_BUNDLE/Contents/MacOS"
@@ -43,16 +43,18 @@ mkdir -p "$APP_BUNDLE/Contents/Resources"
 cp "$BINARY_PATH" "$APP_BUNDLE/Contents/MacOS/$APP_NAME"
 chmod +x "$APP_BUNDLE/Contents/MacOS/$APP_NAME"
 
+# Copy assets directory if present (required for Bevy/bevy_egui)
 if [ -d "assets" ]; then
     cp -r "assets" "$APP_BUNDLE/Contents/Resources/assets"
+    cp -r "assets" "$APP_BUNDLE/Contents/MacOS/assets"
 fi
 
-# Copy icon file if present
+# Copy icon if present
 if [ -f "assets/icon.icns" ]; then
     cp "assets/icon.icns" "$APP_BUNDLE/Contents/Resources/icon.icns"
 fi
 
-# Generate Info.plist required for macOS app bundle
+# Generate Info.plist
 cat << EOF > "$APP_BUNDLE/Contents/Info.plist"
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -78,21 +80,20 @@ cat << EOF > "$APP_BUNDLE/Contents/Info.plist"
 </plist>
 EOF
 
-echo "Archiving .app bundle into compressed tarball..."
+echo "1/3 Creating compressed .app bundle (.app.tar.gz)..."
 tar -czf "${APP_NAME}_${VERSION}_${ARCH}.app.tar.gz" "$APP_BUNDLE"
 
-echo "Setting up temporary payload root for PKG..."
+echo "2/3 Creating DMG installer (.dmg)..."
+hdiutil create -volname "${APP_NAME}" -srcfolder "$APP_BUNDLE" -ov -format UDZO "${APP_NAME}_${VERSION}_${ARCH}.dmg"
+
+echo "3/3 Creating PKG installer with PATH symlink (.pkg)..."
 rm -rf ./pkg_payload
 mkdir -p ./pkg_payload
 cp -r "$APP_BUNDLE" ./pkg_payload/
 
-echo "Generating component configuration..."
 pkgbuild --analyze --root ./pkg_payload components.plist
-
-# Force install strictly into /Applications (disable relocatable behavior)
 plutil -replace BundleIsRelocatable -bool false components.plist
 
-echo "Setting up postinstall script for terminal PATH symlink..."
 mkdir -p installer/scripts
 cat << 'EOF' > installer/scripts/postinstall
 #!/bin/bash
@@ -110,7 +111,6 @@ chmod +x installer/scripts/postinstall
 
 PKG_NAME="${APP_NAME}_${VERSION}_${ARCH}_Installer.pkg"
 
-echo "Building installer package: $PKG_NAME"
 pkgbuild \
   --root ./pkg_payload \
   --install-location "/Applications" \
@@ -118,7 +118,10 @@ pkgbuild \
   --scripts "installer/scripts" \
   "$PKG_NAME"
 
-echo "Cleaning up temporary build files..."
+echo "Cleaning up temporary files..."
 rm -rf ./pkg_payload components.plist installer/ "$APP_BUNDLE"
 
-echo "Package build complete: $PKG_NAME"
+echo "macOS deliverables built successfully:"
+echo " - ${APP_NAME}_${VERSION}_${ARCH}.app.tar.gz"
+echo " - ${APP_NAME}_${VERSION}_${ARCH}.dmg"
+echo " - ${PKG_NAME}"

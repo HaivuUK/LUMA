@@ -18,16 +18,13 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  # ---------------------------------------------------------------------------
-  # Version Extraction Job
-  # ---------------------------------------------------------------------------
   version:
     name: Resolve Version
     runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.get_version.outputs.version }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - id: get_version
         run: |
           VERSION=$(sed -n 's/^version = "\(.*\)"/\1/p' Cargo.toml | head -n 1)
@@ -35,7 +32,7 @@ jobs:
           echo "Resolved Version: $VERSION"
 
   # ---------------------------------------------------------------------------
-  # Linux Job (deb, rpm, AppImage, tar.gz)
+  # Linux Job (deb, rpm, AppImage, flatpak-tarball)
   # ---------------------------------------------------------------------------
   build-linux:
     name: Linux Packages (x86_64)
@@ -48,7 +45,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v7
 
-      - name: Install Linux egui & Packaging Dependencies
+      - name: Install Linux egui & Bevy Dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
@@ -57,7 +54,7 @@ jobs:
             libxkbcommon-dev libgl1-mesa-dev libwayland-dev libgtk-3-dev libssl-dev \
             libasound2-dev libudev-dev rpm
 
-      - name: Install nFPM (for .deb & .rpm)
+      - name: Install nFPM
         run: |
           curl -fsSL -o "$RUNNER_TEMP/nfpm.deb" \
             "https://github.com/goreleaser/nfpm/releases/download/v${NFPM_VERSION}/nfpm_${NFPM_VERSION}_amd64.deb"
@@ -78,15 +75,20 @@ jobs:
 
       - name: Build .deb and .rpm Packages
         run: |
+          mkdir -p dist
           nfpm pkg --config packaging/linux/nfpm.yaml --packager deb --target "dist/luma_${VERSION}_x86_64.deb"
           nfpm pkg --config packaging/linux/nfpm.yaml --packager rpm --target "dist/luma_${VERSION}_x86_64.rpm"
 
       - name: Build .AppImage Package
         run: |
+          mkdir -p dist
           mkdir -p AppDir/usr/bin AppDir/usr/share/applications AppDir/usr/share/icons/hicolor/256x256/apps
           cp target/x86_64-unknown-linux-gnu/release/luma AppDir/usr/bin/luma
           
-          # Create Desktop Entry
+          if [ -d "assets" ]; then
+            cp -r assets AppDir/usr/bin/assets
+          fi
+
           cat << EOF > AppDir/usr/share/applications/luma.desktop
           [Desktop Entry]
           Name=Luma
@@ -100,15 +102,15 @@ jobs:
           cp AppDir/usr/share/applications/luma.desktop AppDir/luma.desktop
           ln -s usr/bin/luma AppDir/AppRun
           
-          # Download AppImageTool
           wget -q https://github.com/AppImage/AppImageKit/releases/download/13/appimagetool-x86_64.AppImage -O appimagetool
           chmod +x appimagetool
           ./appimagetool --appimage-extract-and-run AppDir "dist/luma_${VERSION}_x86_64.AppImage"
 
-      - name: Create Linux Tarball (for Flatpak & CLI fallback)
+      - name: Create Linux Tarball
         run: |
           mkdir -p dist-tar/bin
           cp target/x86_64-unknown-linux-gnu/release/luma dist-tar/bin/
+          if [ -d "assets" ]; then cp -r assets dist-tar/bin/; fi
           tar -czvf "dist/luma_${VERSION}_x86_64.tar.gz" -C dist-tar bin/
 
       - name: Upload Linux Artifacts
@@ -118,7 +120,7 @@ jobs:
           path: dist/*
 
   # ---------------------------------------------------------------------------
-  # Flatpak Packaging Job
+  # Flatpak Job
   # ---------------------------------------------------------------------------
   build-flatpak:
     name: Flatpak (x86_64)
@@ -131,7 +133,7 @@ jobs:
         uses: actions/checkout@v7
 
       - name: Download Linux Tarball
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: release-linux-x86_64
           path: dist/linux
@@ -157,7 +159,7 @@ jobs:
           if-no-files-found: warn
 
   # ---------------------------------------------------------------------------
-  # macOS Job
+  # macOS Job (.pkg, .dmg, .app.tar.gz)
   # ---------------------------------------------------------------------------
   build-macos:
     name: macOS (${{ matrix.name }})
@@ -186,7 +188,7 @@ jobs:
         with:
           key: ${{ matrix.target }}
 
-      - name: Build macOS Installer Package
+      - name: Build macOS Package, DMG, and App
         run: |
           chmod +x buildscripts/macOS/build-mac.sh
           ./buildscripts/macOS/build-mac.sh ${{ matrix.target }}
@@ -197,6 +199,7 @@ jobs:
           name: release-macos-${{ matrix.name }}
           path: |
             *.pkg
+            *.dmg
             *.app.tar.gz
 
   # ---------------------------------------------------------------------------
@@ -227,17 +230,22 @@ jobs:
         run: |
           dotnet tool install --global wix --version 5.0.2
 
+      - name: Install NSIS Compiler
+        uses: nsis-dev/setup-nsis@v1
+
       - name: Build Release Binary
         run: cargo build --release --target x86_64-pc-windows-msvc
 
       - name: Build MSI Installer
         shell: pwsh
         run: |
+          mkdir -p dist
           wix build packaging/windows/luma.wxs -d Version="${env:VERSION}" -o "dist/luma_${env:VERSION}_x64_en-US.msi"
 
       - name: Build Setup EXE Installer (NSIS)
         shell: pwsh
         run: |
+          mkdir -p dist
           makensis /DVERSION="${env:VERSION}" packaging/windows/installer.nsi
 
       - name: Upload Windows Artifacts
