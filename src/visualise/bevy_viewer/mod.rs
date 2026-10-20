@@ -41,10 +41,16 @@ pub fn start_gui() -> Result<()> {
     run_bevy_app(LumaGuiApp::new_gui(), (1280, 720), "LUMA - Bone Material Assignment Tool")
 }
 
+static ICON_PNG: &[u8] = include_bytes!(concat!(env!("CARGO_MANIFEST_DIR"), "/icons/icon.png"));
+
 fn set_window_icon(_main_thread: NonSendMarker,) {
-    let image = image::open("icons/icon.png")
-        .expect("Failed to open icon path")
-        .into_rgba8();
+    let image = match image::load_from_memory(ICON_PNG) {
+        Ok(img) => img.into_rgba8(),
+        Err(e) => {
+            log::warn!("Failed to decode window icon: {}", e);
+            return;
+        }
+    };
 
     let (width, height) = image.dimensions();
 
