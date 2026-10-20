@@ -16,7 +16,7 @@ permissions:
 
 env:
   CARGO_TERM_COLOR: always
-  APP_NAME: LUMA
+  APP_NAME: luma
   APP_DISPLAY: "LUMA"
   APP_ID: "org.haivu.luma"
   PUBLISHER: "Haivu"
