@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<installer-gui-script minSpecVersion="2">
+    <title>@APP_DISPLAY@</title>
+    <license file="LICENSE.txt" />
+    <options customize="never" require-scripts="false" hostArchitectures="arm64,x86_64" />
+    <domains enable_anyLocation="false" enable_localSystem="true" />
+    <choices-outline>
+        <line choice="default">
+            <line choice="@APP_ID@" />
+        </line>
+    </choices-outline>
+    <choice id="default" />
+    <choice id="@APP_ID@" visible="false">
+        <pkg-ref id="@APP_ID@" />
+    </choice>
+    <pkg-ref id="@APP_ID@" version="@VERSION@" onConclusion="none">component.pkg</pkg-ref>
+</installer-gui-script>

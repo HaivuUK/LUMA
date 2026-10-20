@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=luma
+Comment=One-line description of LUMA
+Exec=luma
+Icon=luma
+Terminal=false
+Categories=Utility;
+# Must equal the Bevy window `name` (see notes) so the dock/taskbar shows the right icon
+StartupWMClass=org.haivu.luma

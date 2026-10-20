@@ -1,3 +1,4 @@
+pub mod bevy_viewer;
 pub mod mesh_visualiser;
 pub mod web_viewer;
 
