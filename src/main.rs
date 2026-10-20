@@ -1,5 +1,5 @@
 use clap::{Parser, ValueEnum};
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use indicatif::{ProgressBar, ProgressStyle};
 use std::sync::Arc;
 
@@ -47,6 +47,9 @@ struct Args {
 	/// Output directory for histogram exports
 	#[arg(long)]
 	histogram_dir: Option<String>,
+	/// Launch full interactive GUI
+	#[arg(long)]
+	gui: bool,
 }
 
 fn resolve_visualise_selection(args: &Args) -> Result<Option<VizMode>> {
@@ -63,6 +66,25 @@ fn resolve_visualise_selection(args: &Args) -> Result<Option<VizMode>> {
 }
 
 fn main() -> Result<()> {
+	let args = Args::parse();
+
+	let no_cli_args = !args.gui
+		&& args.params.is_none()
+		&& args.ct.is_none()
+		&& args.mesh.is_none()
+		&& args.visualise.is_none()
+		&& args.viz_export.is_none()
+		&& args.trans.is_none()
+		&& args.rot.is_none()
+		&& !args.histogram
+		&& args.histogram_dir.is_none();
+
+	if args.gui || no_cli_args {
+		{
+			return luma::run_gui();
+		}
+	}
+
 	// Initialise logger - only show debug/trace in debug builds or with explicit env var
 	let log_level = if cfg!(debug_assertions) || std::env::var("RUST_LOG").is_ok() {
 		log::LevelFilter::Debug

@@ -472,3 +472,8 @@ pub fn visualise_assigned_model(
 
 	visualise::generate_visualisation_from_assigned(&mesh, mesh_path, &per_part, &config)
 }
+
+/// Launch full GUI
+pub fn run_gui() -> Result<()> {
+	visualise::bevy_viewer::start_gui()
+}

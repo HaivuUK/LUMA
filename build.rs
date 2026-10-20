@@ -14,6 +14,4 @@ fn main() {
             manifest.display()
         );
     }
-
-    tauri_build::build()
 }
